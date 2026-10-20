@@ -83,6 +83,11 @@ export class MariaDbService extends BaseService {
     const adminUser = settings.mariadbAdminUser || 'astra_admin'
     const adminPass = settings.mariadbAdminPassword || 'astra_secret'
 
+    // Pastikan folder data/ ada sebelum menulis init-file
+    if (!fs.existsSync(Paths.data)) {
+      fs.mkdirSync(Paths.data, { recursive: true })
+    }
+
     const initSqlPath = path.join(Paths.data, `mariadb-init-${Date.now()}.sql`)
     const initSql = [
       `CREATE USER IF NOT EXISTS '${adminUser}'@'127.0.0.1' IDENTIFIED BY '${adminPass}';`,
@@ -99,7 +104,8 @@ export class MariaDbService extends BaseService {
 
     // 6. Spawn mariadbd.exe dengan --defaults-file dan --init-file
     this.appendLog(`Menjalankan mariadbd.exe pada port ${this.port}...`)
-    const normalizedInitSql = initSqlPath.replace(/\\/g, '/')
+    // Gunakan backslash untuk kompatibilitas MariaDB di Windows
+    const normalizedInitSql = initSqlPath.replace(/\//g, '\\')
     this.spawnProcess(mariadbdExe, [
       `--defaults-file=${this.configPath}`,
       `--init-file=${normalizedInitSql}`,
@@ -109,14 +115,17 @@ export class MariaDbService extends BaseService {
     // 7. Polling sampai port TCP merespons (siap menerima koneksi)
     const isReady = await PortChecker.waitForPort(this.port, 30000, 500)
 
-    // Hapus file init SQL sementara demi keamanan
-    if (fs.existsSync(initSqlPath)) {
-      try {
-        fs.unlinkSync(initSqlPath)
-      } catch {
-        // Abaikan jika masih di-lock sejenak oleh mariadbd
+    // Hapus file init SQL setelah MariaDB siap — berikan jeda agar file tidak dihapus
+    // sementara MariaDB masih memproses isi SQL (khususnya saat startup lambat)
+    setTimeout(() => {
+      if (fs.existsSync(initSqlPath)) {
+        try {
+          fs.unlinkSync(initSqlPath)
+        } catch {
+          // Abaikan jika masih di-lock
+        }
       }
-    }
+    }, 3000)
 
     if (isReady && this.process && !this.process.killed) {
       this.setStatus('running')

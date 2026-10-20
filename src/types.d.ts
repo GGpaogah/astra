@@ -110,6 +110,47 @@ export interface ResolveResult {
   warnings: string[]
 }
 
+export type DownloadStatus =
+  | 'idle'
+  | 'resolving'
+  | 'downloading'
+  | 'verifying'
+  | 'extracting'
+  | 'done'
+  | 'error'
+  | 'cancelled'
+
+export interface DownloadJob {
+  id: string
+  type: RuntimeType
+  channel: VersionChannel
+  version?: string
+  url?: string
+  status: DownloadStatus
+  progressPercent: number
+  bytesReceived: number
+  totalBytes: number
+  archiveFile?: string
+  destFolder?: string
+  error?: string
+  warnings: string[]
+  startedAt: string
+  finishedAt?: string
+}
+
+export interface DownloadProgressEvent {
+  id: string
+  type: RuntimeType
+  status: DownloadStatus
+  progressPercent: number
+  bytesReceived: number
+  totalBytes: number
+  version?: string
+  error?: string
+  warnings: string[]
+  destFolder?: string
+}
+
 export interface AstraApi {
   ping: () => Promise<string>
   listServices: () => Promise<ServiceInfo[]>
@@ -140,6 +181,13 @@ export interface AstraApi {
   invalidateResolverCache: (type?: string) => Promise<boolean>
   listCatalog: () => Promise<CatalogEntry[]>
   validateDownloadUrl: (url: string) => Promise<{ valid: boolean; reason?: string }>
+
+  // Download API
+  startDownload: (type: string, channel: string, forceRefresh?: boolean) => Promise<string>
+  cancelDownload: (type: string) => Promise<boolean>
+  getDownloadStatus: () => Promise<DownloadJob[]>
+  deleteRuntimeVersion: (type: string, folderId: string) => Promise<boolean>
+  onDownloadProgress: (callback: (data: DownloadProgressEvent) => void) => () => void
 
   openExternal: (url: string) => Promise<boolean>
   openPath: (relativePath: string) => Promise<boolean>

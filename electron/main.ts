@@ -10,8 +10,10 @@ import { registerServicesIpc } from "./ipc/services.ipc.ts";
 import { registerRuntimesIpc } from "./ipc/runtimes.ipc.ts";
 import { registerTmpIpc } from "./ipc/tmp.ipc.ts";
 import { registerCatalogIpc } from "./ipc/catalog.ipc.ts";
+import { registerDownloadIpc } from "./ipc/download.ipc.ts";
 import { TmpCleaner } from "./core/TmpCleaner.ts";
 import { Settings } from "./core/Settings.ts";
+import { downloadManager } from "./core/download/DownloadManager.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -61,6 +63,7 @@ registerServicesIpc();
 registerRuntimesIpc();
 registerTmpIpc();
 registerCatalogIpc();
+registerDownloadIpc();
 
 // Bersihkan tmp/ saat aplikasi start
 try {
@@ -111,9 +114,11 @@ app.whenReady().then(() => {
   });
 
   serviceManager.setWebContents(win.webContents);
+  downloadManager.setWebContents(win.webContents);
 
   win.on("closed", () => {
     serviceManager.setWebContents(null);
+    downloadManager.setWebContents(null);
   });
 
   if (import.meta.env.DEV) {

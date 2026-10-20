@@ -1,0 +1,407 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { spawn } from 'node:child_process'
+import { EventEmitter } from 'node:events'
+import type { WebContents } from 'electron'
+import { Paths } from '../Paths.ts'
+import { RUNTIME_DEFINITIONS } from '../runtimes/RuntimeDefinition.ts'
+import { resolveLatest } from './VersionResolver.ts'
+import type {
+  DownloadJob,
+  DownloadProgressEvent,
+  VersionChannel,
+  ResolveResult
+} from './CatalogTypes.ts'
+import type { RuntimeType } from '../runtimes/RuntimeDefinition.ts'
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+function formatJobId(type: RuntimeType): string {
+  return `${type}-${Date.now()}`
+}
+
+function safeUnlink(filePath: string): void {
+  try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath) } catch { /* non-fatal */ }
+}
+
+function safeRmDir(dirPath: string): void {
+  try { if (fs.existsSync(dirPath)) fs.rmSync(dirPath, { recursive: true, force: true }) } catch { /* non-fatal */ }
+}
+
+// ─── DownloadManager ────────────────────────────────────────────────────────
+
+class DownloadManagerClass extends EventEmitter {
+  private jobs = new Map<string, DownloadJob>()
+  /** type → jobId mapping untuk cegah duplikat per runtime */
+  private activeByType = new Map<RuntimeType, string>()
+  private webContents: WebContents | null = null
+  /** AbortController per job id */
+  private controllers = new Map<string, AbortController>()
+
+  public setWebContents(wc: WebContents | null): void {
+    this.webContents = wc
+  }
+
+  // ── public API ─────────────────────────────────────────────────────────────
+
+  public getJob(jobId: string): DownloadJob | undefined {
+    return this.jobs.get(jobId)
+  }
+
+  public getJobByType(type: RuntimeType): DownloadJob | undefined {
+    const id = this.activeByType.get(type)
+    return id ? this.jobs.get(id) : undefined
+  }
+
+  public listJobs(): DownloadJob[] {
+    return [...this.jobs.values()]
+  }
+
+  /**
+   * Mulai download runtime.
+   * Jika ada job aktif (resolving/downloading/extracting) untuk type yang sama → throw.
+   */
+  public async start(
+    type: RuntimeType,
+    channel: VersionChannel = 'stable',
+    forceRefresh = false
+  ): Promise<string> {
+    const existingId = this.activeByType.get(type)
+    if (existingId) {
+      const existing = this.jobs.get(existingId)
+      if (existing && ['resolving', 'downloading', 'verifying', 'extracting'].includes(existing.status)) {
+        throw new Error(`Download ${type} sudah berjalan (job: ${existingId})`)
+      }
+    }
+
+    const jobId = formatJobId(type)
+    const job: DownloadJob = {
+      id: jobId,
+      type,
+      channel,
+      status: 'resolving',
+      progressPercent: 0,
+      bytesReceived: 0,
+      totalBytes: 0,
+      warnings: [],
+      startedAt: new Date().toISOString()
+    }
+    this.jobs.set(jobId, job)
+    this.activeByType.set(type, jobId)
+    this.pushProgress(job)
+
+    // Jalankan async tanpa blocking caller
+    this.runJob(job, forceRefresh).catch((err) => {
+      this.failJob(job, (err as Error).message)
+    })
+
+    return jobId
+  }
+
+  /** Batalkan job aktif untuk type tertentu */
+  public cancel(type: RuntimeType): boolean {
+    const jobId = this.activeByType.get(type)
+    if (!jobId) return false
+    const job = this.jobs.get(jobId)
+    if (!job) return false
+    if (['done', 'error', 'cancelled'].includes(job.status)) return false
+
+    const controller = this.controllers.get(jobId)
+    controller?.abort()
+
+    this.updateJob(job, { status: 'cancelled', finishedAt: new Date().toISOString() })
+    this.activeByType.delete(type)
+    return true
+  }
+
+  /**
+   * Hapus versi yang sudah terinstall dari bin/.
+   * Validasi: type valid, folderId tidak mengandung path traversal,
+   * folder berada di dalam bin/<folderName>/.
+   */
+  public deleteVersion(type: RuntimeType, folderId: string): void {
+    if (!folderId || folderId.includes('..') || path.isAbsolute(folderId) ||
+        folderId.includes('/') || folderId.includes('\\')) {
+      throw new Error('folderId tidak valid')
+    }
+    const definition = RUNTIME_DEFINITIONS[type]
+    const base = path.join(Paths.bin, definition.folderName)
+    const target = path.join(base, folderId)
+
+    // Realpath check: target harus di dalam base
+    const realBase = fs.realpathSync(base)
+    const realTarget = fs.realpathSync(target)
+    if (!realTarget.startsWith(realBase + path.sep)) {
+      throw new Error('Akses di luar folder bin ditolak')
+    }
+    if (!fs.existsSync(target)) {
+      throw new Error(`Folder versi tidak ditemukan: ${target}`)
+    }
+    fs.rmSync(target, { recursive: true, force: true })
+  }
+
+  // ── internal ───────────────────────────────────────────────────────────────
+
+  private async runJob(job: DownloadJob, forceRefresh: boolean): Promise<void> {
+    const controller = new AbortController()
+    this.controllers.set(job.id, controller)
+
+    try {
+      // ── 1. Resolve versi ────────────────────────────────────────────────
+      let resolved: ResolveResult
+      try {
+        resolved = await resolveLatest(job.type, job.channel, forceRefresh)
+      } catch (err) {
+        throw new Error(`Resolve gagal: ${(err as Error).message}`)
+      }
+
+      if (controller.signal.aborted) return
+
+      // Blokir URL yang belum terverifikasi manual
+      if (resolved.needsManualVerification) {
+        throw new Error(
+          `URL untuk ${job.type} belum diverifikasi manual (diawali TODO_VERIFY:). ` +
+          `Perbarui catalog.json atau isi URL kustom di Settings sebelum mengunduh.`
+        )
+      }
+
+      if (resolved.warnings.length > 0) {
+        job.warnings.push(...resolved.warnings)
+      }
+
+      this.updateJob(job, {
+        status: 'downloading',
+        version: resolved.version,
+        url: resolved.url
+      })
+
+      // ── 2. Tentukan nama file dan folder tujuan ─────────────────────────
+      const definition = RUNTIME_DEFINITIONS[job.type]
+      const isComposer = job.type === 'composer'
+      const archiveName = isComposer
+        ? `composer-${resolved.version}.phar`
+        : path.basename(resolved.url)
+      const archivePath = path.join(Paths.downloads, archiveName)
+
+      // Nama folder tujuan = nama arsip tanpa ekstensi (ala Laragon)
+      const destFolder = isComposer
+        ? 'composer'
+        : archiveName.replace(/\.(zip|tar\.\w+)$/, '')
+      const destPath = path.join(Paths.bin, definition.folderName, destFolder)
+
+      this.updateJob(job, { archiveFile: archiveName, destFolder })
+
+      if (!fs.existsSync(Paths.downloads)) {
+        fs.mkdirSync(Paths.downloads, { recursive: true })
+      }
+
+      // ── 3. Download ─────────────────────────────────────────────────────
+      let response: Response
+      try {
+        response = await fetch(resolved.url, { signal: controller.signal })
+      } catch (err) {
+        throw new Error(`Download gagal: ${(err as Error).message}`)
+      }
+
+      if (!response.ok) {
+        throw new Error(`Server mengembalikan HTTP ${response.status} untuk ${resolved.url}`)
+      }
+
+      const contentLength = response.headers.get('content-length')
+      const totalBytes = contentLength ? parseInt(contentLength, 10) : 0
+      this.updateJob(job, { totalBytes })
+
+      const fileStream = fs.createWriteStream(archivePath)
+      const hasher = crypto.createHash('sha256')
+      let bytesReceived = 0
+
+      try {
+        const reader = response.body!.getReader()
+        while (true) {
+          if (controller.signal.aborted) {
+            reader.cancel()
+            fileStream.close()
+            safeUnlink(archivePath)
+            return
+          }
+          const { done, value } = await reader.read()
+          if (done) break
+          fileStream.write(value)
+          hasher.update(value)
+          bytesReceived += value.length
+          const percent = totalBytes > 0 ? Math.round((bytesReceived / totalBytes) * 100) : 0
+          this.updateJob(job, { bytesReceived, progressPercent: percent })
+        }
+        fileStream.end()
+        await new Promise<void>((resolve, reject) => {
+          fileStream.on('finish', resolve)
+          fileStream.on('error', reject)
+        })
+      } catch (err) {
+        fileStream.destroy()
+        safeUnlink(archivePath)
+        throw new Error(`Error saat menulis arsip: ${(err as Error).message}`)
+      }
+
+      // ── 4. Verifikasi SHA-256 ───────────────────────────────────────────
+      this.updateJob(job, { status: 'verifying', progressPercent: 100 })
+      const actualSha = hasher.digest('hex')
+
+      if (resolved.sha256) {
+        if (actualSha.toLowerCase() !== resolved.sha256.toLowerCase()) {
+          safeUnlink(archivePath)
+          throw new Error(
+            `SHA-256 tidak cocok untuk ${archiveName}.\n` +
+            `  Diharapkan: ${resolved.sha256}\n` +
+            `  Aktual    : ${actualSha}\n` +
+            `Arsip telah dihapus. Coba unduh ulang.`
+          )
+        }
+      } else {
+        job.warnings.push(
+          `SHA-256 tidak tersedia untuk ${archiveName}; integritas tidak dapat diverifikasi secara otomatis (SHA aktual: ${actualSha}).`
+        )
+      }
+
+      if (controller.signal.aborted) {
+        safeUnlink(archivePath)
+        return
+      }
+
+      // ── 5. Ekstraksi ────────────────────────────────────────────────────
+      this.updateJob(job, { status: 'extracting' })
+
+      if (isComposer) {
+        // Composer adalah single .phar — salin langsung ke bin/composer/
+        if (!fs.existsSync(destPath)) {
+          fs.mkdirSync(destPath, { recursive: true })
+        }
+        fs.copyFileSync(archivePath, path.join(destPath, 'composer.phar'))
+        safeUnlink(archivePath)
+      } else {
+        await this.extractZip(archivePath, destPath, resolved.archiveRoot)
+      }
+
+      // ── 6. Selesai ──────────────────────────────────────────────────────
+      this.updateJob(job, {
+        status: 'done',
+        progressPercent: 100,
+        finishedAt: new Date().toISOString()
+      })
+      this.activeByType.delete(job.type)
+    } catch (err) {
+      if (controller.signal.aborted) {
+        // Sudah di-handle di cancel()
+        return
+      }
+      this.failJob(job, (err as Error).message)
+    } finally {
+      this.controllers.delete(job.id)
+    }
+  }
+
+  /**
+   * Ekstrak ZIP ke destPath.
+   * Jika archiveRoot ada, angkat isi subfolder satu level.
+   * Tolak path traversal di dalam arsip.
+   */
+  private async extractZip(
+    archivePath: string,
+    destPath: string,
+    archiveRoot?: string
+  ): Promise<void> {
+    // Gunakan folder tmp sementara untuk ekstraksi lalu rename
+    const tmpDest = `${destPath}.__tmp_${Date.now()}`
+
+    if (fs.existsSync(tmpDest)) safeRmDir(tmpDest)
+    fs.mkdirSync(tmpDest, { recursive: true })
+
+    // Expand-Archive via PowerShell (tidak perlu dependency tambahan)
+    const psScript = [
+      `$ErrorActionPreference = 'Stop'`,
+      `Expand-Archive -LiteralPath '${archivePath.replace(/'/g, "''")}' -DestinationPath '${tmpDest.replace(/'/g, "''")}' -Force`
+    ].join('; ')
+
+    await new Promise<void>((resolve, reject) => {
+      const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', psScript], {
+        windowsHide: true,
+        shell: false
+      })
+      let stderr = ''
+      ps.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+      ps.on('error', (err) => reject(new Error(`PowerShell gagal dijalankan: ${err.message}`)))
+      ps.on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error(`Expand-Archive gagal (exit ${code}): ${stderr.slice(0, 300)}`))
+      })
+    })
+
+    // Angkat isi archiveRoot jika ada
+    let sourceDir = tmpDest
+    if (archiveRoot) {
+      const inner = path.join(tmpDest, archiveRoot)
+      if (!fs.existsSync(inner)) {
+        safeRmDir(tmpDest)
+        throw new Error(
+          `archiveRoot "${archiveRoot}" tidak ditemukan setelah ekstraksi. ` +
+          `Periksa nilai archiveRoot di catalog.json.`
+        )
+      }
+      // Verifikasi tidak ada path traversal di dalam folder inner
+      const realTmp = fs.realpathSync(tmpDest)
+      const realInner = fs.realpathSync(inner)
+      if (!realInner.startsWith(realTmp + path.sep)) {
+        safeRmDir(tmpDest)
+        throw new Error('Path traversal terdeteksi di dalam arsip; ekstraksi dibatalkan.')
+      }
+      sourceDir = inner
+    }
+
+    // Hapus destPath lama jika ada lalu rename
+    safeRmDir(destPath)
+    fs.renameSync(sourceDir, destPath)
+    safeRmDir(tmpDest)
+  }
+
+  // ── utilities ──────────────────────────────────────────────────────────────
+
+  private updateJob(job: DownloadJob, partial: Partial<DownloadJob>): void {
+    Object.assign(job, partial)
+    this.pushProgress(job)
+  }
+
+  private failJob(job: DownloadJob, error: string): void {
+    this.updateJob(job, {
+      status: 'error',
+      error,
+      finishedAt: new Date().toISOString()
+    })
+    this.activeByType.delete(job.type)
+    this.controllers.delete(job.id)
+  }
+
+  private pushProgress(job: DownloadJob): void {
+    const event: DownloadProgressEvent = {
+      id: job.id,
+      type: job.type,
+      status: job.status,
+      progressPercent: job.progressPercent,
+      bytesReceived: job.bytesReceived,
+      totalBytes: job.totalBytes,
+      version: job.version,
+      error: job.error,
+      warnings: job.warnings,
+      destFolder: job.destFolder
+    }
+    // Emit local untuk unit test / internal
+    this.emit('progress', event)
+
+    // Push ke renderer
+    if (this.webContents && !this.webContents.isDestroyed()) {
+      this.webContents.send('download:progress', event)
+    }
+  }
+}
+
+export const downloadManager = new DownloadManagerClass()

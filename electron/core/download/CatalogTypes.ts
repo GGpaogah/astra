@@ -64,3 +64,51 @@ export interface ResolverCache {
   schemaVersion: string
   entries: CacheEntry[]
 }
+
+export type DownloadStatus =
+  | 'idle'
+  | 'resolving'
+  | 'downloading'
+  | 'verifying'
+  | 'extracting'
+  | 'done'
+  | 'error'
+  | 'cancelled'
+
+export interface DownloadJob {
+  /** Unique job ID: "<type>-<timestamp>" */
+  id: string
+  type: RuntimeType
+  channel: VersionChannel
+  /** Versi konkret yang di-resolve, diisi setelah resolving selesai */
+  version?: string
+  /** URL arsip yang diunduh */
+  url?: string
+  status: DownloadStatus
+  /** 0–100 */
+  progressPercent: number
+  bytesReceived: number
+  totalBytes: number
+  /** Nama file yang disimpan di data/downloads/ */
+  archiveFile?: string
+  /** Folder tujuan di bin/<folderName>/<destFolder>/ */
+  destFolder?: string
+  error?: string
+  /** Peringatan non-fatal (mis. SHA tidak tersedia) */
+  warnings: string[]
+  startedAt: string
+  finishedAt?: string
+}
+
+export interface DownloadProgressEvent {
+  id: string
+  type: RuntimeType
+  status: DownloadStatus
+  progressPercent: number
+  bytesReceived: number
+  totalBytes: number
+  version?: string
+  error?: string
+  warnings: string[]
+  destFolder?: string
+}

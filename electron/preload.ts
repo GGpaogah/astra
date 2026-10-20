@@ -36,6 +36,21 @@ contextBridge.exposeInMainWorld('api', {
   validateDownloadUrl: (url: string) =>
     ipcRenderer.invoke('catalog:validate-url', url),
 
+  // Download API
+  startDownload: (type: string, channel: string, forceRefresh?: boolean) =>
+    ipcRenderer.invoke('download:start', type, channel, forceRefresh),
+  cancelDownload: (type: string) =>
+    ipcRenderer.invoke('download:cancel', type),
+  getDownloadStatus: () =>
+    ipcRenderer.invoke('download:status'),
+  deleteRuntimeVersion: (type: string, folderId: string) =>
+    ipcRenderer.invoke('download:delete-version', type, folderId),
+  onDownloadProgress: (callback: (data: import('./core/download/CatalogTypes.ts').DownloadProgressEvent) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, data: import('./core/download/CatalogTypes.ts').DownloadProgressEvent) => callback(data)
+    ipcRenderer.on('download:progress', subscription)
+    return () => { ipcRenderer.removeListener('download:progress', subscription) }
+  },
+
   openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
   openPath: (relativePath: string) => ipcRenderer.invoke('app:open-path', relativePath),
 

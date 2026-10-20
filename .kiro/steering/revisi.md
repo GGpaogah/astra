@@ -34,6 +34,7 @@ Test-Path "E:\Project\astra\www\phpmyadmin\index.php"
 
 **Catatan Fase 6:** Download Manager (Fase 6B) akan mengotomasi langkah ini.  
 phpMyAdmin akan masuk katalog sebagai tool yang bisa diinstall dari UI.  
-Jangan implementasikan download otomatis sebelum Fase 6B disetujui.
+Fase 6B tidak mengimplementasikan download phpMyAdmin karena `RuntimeType` tidak mencakup tool non-runtime seperti phpMyAdmin — ini akan ditangani di Fase 8B saat type `tool` ditambahkan ke RuntimeDefinition.  
+Jangan implementasikan download otomatis sebelum Fase 8B disetujui.
 
 ---

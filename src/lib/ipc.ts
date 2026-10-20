@@ -10,7 +10,9 @@ import type {
   TmpCleanResult,
   CopyTemplateResult,
   ResolveResult,
-  CatalogEntry
+  CatalogEntry,
+  DownloadJob,
+  DownloadProgressEvent
 } from '../types.d.ts'
 
 export async function ping(): Promise<string> {
@@ -122,6 +124,33 @@ export async function validateDownloadUrl(
   url: string
 ): Promise<{ valid: boolean; reason?: string }> {
   return window.api.validateDownloadUrl(url)
+}
+
+// Download API
+export async function startDownload(
+  type: string,
+  channel: string,
+  forceRefresh?: boolean
+): Promise<string> {
+  return window.api.startDownload(type, channel, forceRefresh)
+}
+
+export async function cancelDownload(type: string): Promise<boolean> {
+  return window.api.cancelDownload(type)
+}
+
+export async function getDownloadStatus(): Promise<DownloadJob[]> {
+  return window.api.getDownloadStatus()
+}
+
+export async function deleteRuntimeVersion(type: string, folderId: string): Promise<boolean> {
+  return window.api.deleteRuntimeVersion(type, folderId)
+}
+
+export function onDownloadProgress(
+  callback: (data: DownloadProgressEvent) => void
+): () => void {
+  return window.api.onDownloadProgress(callback)
 }
 
 export function onServiceStatus(callback: (data: ServiceStatusEvent) => void): () => void {

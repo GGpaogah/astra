@@ -82,6 +82,9 @@ export const Paths = {
   // tmp/ — file sementara PHP (sess_*, upload); flat seperti Laragon
   tmp: path.join(root, 'tmp'),
 
+  // data/downloads/ — arsip runtime yang sedang/sudah diunduh
+  downloads: path.join(root, 'data', 'downloads'),
+
   // usr/ — override pengguna (tpl) dan binary tambahan (bin)
   usr,
   usrTpl,
@@ -95,6 +98,7 @@ export const Paths = {
       Paths.logs,
       Paths.www,
       Paths.tmp,
+      Paths.downloads,
       Paths.usr,
       Paths.usrTpl,
       Paths.usrBin,

@@ -4,82 +4,72 @@
   "entries": [
     {
       "type": "php",
-      "version": "8.3.16",
+      "version": "8.5.11",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "TODO_VERIFY:https://windows.php.net/downloads/releases/php-8.3.16-Win32-vs16-x64.zip",
-      "archiveRoot": "php-8.3.16-Win32-vs16-x64",
-      "label": "PHP 8.3.16 (Thread Safe, VS16, x64)"
-    },
-    {
-      "type": "php",
-      "version": "8.2.28",
-      "channel": "stable",
-      "platform": "win32",
-      "arch": "x64",
-      "url": "TODO_VERIFY:https://windows.php.net/downloads/releases/php-8.2.28-Win32-vs16-x64.zip",
-      "archiveRoot": "php-8.2.28-Win32-vs16-x64",
-      "label": "PHP 8.2.28 (Thread Safe, VS16, x64)"
+      "url": "https://downloads.php.net/~windows/releases/archives/php-8.5.11-Win32-vs17-x64.zip",
+      "archiveRoot": "php-8.5.11-Win32-vs17-x64",
+      "label": "PHP 8.5.11 (Thread Safe, VS17, x64)"
     },
     {
       "type": "apache",
-      "version": "2.4.62",
+      "version": "2.4.69",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "TODO_VERIFY:https://www.apachelounge.com/download/VS17/binaries/httpd-2.4.62-240904-win64-VS17.zip",
+      "url": "https://www.apachelounge.com/download/VS18/binaries/httpd-2.4.69-261002-Win64-VS18.zip",
       "archiveRoot": "Apache24",
-      "label": "Apache 2.4.62 (VS17, x64) — verifikasi manual diperlukan (Apache Lounge hotlink protection)"
+      "label": "Apache 2.4.69 (VS18, x64)"
     },
     {
       "type": "mariadb",
-      "version": "11.4.5",
+      "version": "12.3",
       "channel": "lts",
       "platform": "win32",
       "arch": "x64",
-      "url": "TODO_VERIFY:https://downloads.mariadb.org/rest-api/mariadb/11.4.5/mariadb-11.4.5-winx64.zip",
-      "archiveRoot": "mariadb-11.4.5-winx64",
-      "label": "MariaDB 11.4.5 LTS (x64)"
+      "url": "https://downloads.mariadb.org/rest-api/mariadb/12.3/mariadb-12.3-winx64.zip",
+      "archiveRoot": "mariadb-12.3-winx64",
+      "label": "MariaDB 12.3 LTS (x64)"
     },
     {
       "type": "node",
-      "version": "20.19.0",
-      "channel": "lts",
+      "version": "26.9.0",
+      "channel": "Current",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://nodejs.org/dist/v20.19.0/node-v20.19.0-win-x64.zip",
-      "archiveRoot": "node-v20.19.0-win-x64",
-      "label": "Node.js 20.19.0 LTS (x64)"
+      "url": "https://nodejs.org/dist/v26.9.0/node-v26.9.0-win-x64.zip",
+      "archiveRoot": "node-v26.9.0-win-x64",
+      "label": "Node.js 26.9.0 Current (x64)"
     },
     {
       "type": "nginx",
-      "version": "1.27.3",
+      "version": "1.29.8",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://nginx.org/download/nginx-1.27.3.zip",
-      "archiveRoot": "nginx-1.27.3",
-      "label": "Nginx 1.27.3 (Windows)"
+      "url": "https://nginx.org/download/nginx-1.29.8.zip",
+      "archiveRoot": "nginx-1.29.8",
+      "label": "Nginx 1.29.8 (Windows)"
     },
     {
       "type": "python",
-      "version": "3.13.1",
+      "version": "3.13.9",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://www.python.org/ftp/python/3.13.1/python-3.13.1-embed-amd64.zip",
-      "archiveRoot": "python-3.13.1-embed-amd64",
-      "label": "Python 3.13.1 Embeddable (x64)"
+      "url": "https://www.python.org/ftp/python/3.13.9/python-3.13.9-embed-amd64.zip",
+      "archiveRoot": "python-3.13.9-embed-amd64",
+      "label": "Python 3.13.9 Embeddable (x64)"
     },
     {
       "type": "composer",
-      "version": "2.8.5",
+      "version": "2.10.3",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://getcomposer.org/download/2.8.5/composer.phar",
-      "label": "Composer 2.8.5"
+      "url": "https://getcomposer.org/download/2.10.3/composer.phar",
+      "label": "Composer 2.10.3"
     }
   ]
 }

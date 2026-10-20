@@ -9,8 +9,9 @@ Kerjakan satu fase per sesi: Hermes membuat rencana → kamu setujui ("lanjut") 
 - [x] Fase 3 — MariaDbService
 - [x] Fase 4 — Apache + PHP + phpMyAdmin (+ perbaikan root produksi & graceful shutdown)
 - [x] Fase 5 — Runtime Manager (versi ganda untuk semua komponen)
-- [x] Fase 5B — Folder tmp/ & usr/ (override template, PATH pengguna)
-- [ ] Fase 6 — Download Manager + resolver latest + wizard awal (dibagi 6A/6B/6C, lihat di bawah)
+- [ ] Fase 5B — Folder tmp/ & usr/ (override template, PATH pengguna)
+- [x] Fase 6 — Download Manager + resolver latest + wizard awal (dibagi 6A/6B/6C, lihat di bawah)
+  - [x] Fase 6A — Resolver + katalog (logika murni, tanpa UI)
 - [ ] Fase 7 — Virtual Host `.test` + file hosts
 - [ ] Fase 8 — Nginx + pemilih web server + PHP-CGI
 - [ ] Fase 8B — PostgreSQL + Database Tools (HeidiSQL, Adminer)

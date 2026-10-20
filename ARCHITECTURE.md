@@ -59,6 +59,7 @@ astra/
 │   ├── tpl/                   # Override template konfigurasi (.tpl)
 │   └── bin/                   # Binary tambahan user (masuk PATH di Terminal)
 ├── www/                       # Root direktori web user & phpMyAdmin
+├── catalog/                   # Katalog runtime offline fallback (catalog.json) — dikemas via extraResources
 ├── electron/
 │   ├── core/
 │   │   ├── Paths.ts           # Manajemen path terpusat (dev & packaged)
@@ -68,6 +69,16 @@ astra/
 │   │   ├── TemplateResolver.ts# Resolusi template usr/tpl → electron/templates fallback
 │   │   ├── TmpCleaner.ts      # Pembersih file sementara PHP di tmp/
 │   │   ├── ServiceManager.ts  # Orkestrasi startAll/stopAll & log batching
+│   │   ├── download/          # Fase 6A — resolver versi & katalog
+│   │   │   ├── CatalogTypes.ts      # Interface: CatalogEntry, ResolveResult, VersionChannel
+│   │   │   ├── catalog.ts           # Loader + validator catalog.json (offline fallback)
+│   │   │   ├── ResolverCache.ts     # Cache data/resolver-cache.json, TTL 4j
+│   │   │   ├── VersionResolver.ts   # Orchestrator: dispatch, allowlist, cache, fallback
+│   │   │   └── resolvers/
+│   │   │       ├── PhpResolver.ts        # windows.php.net/releases.json
+│   │   │       ├── NodeResolver.ts       # nodejs.org/dist/index.json + SHASUMS256.txt
+│   │   │       ├── MariaDbResolver.ts    # downloads.mariadb.org REST API
+│   │   │       └── SimpleResolvers.ts    # Nginx, Composer, Python
 │   │   ├── runtimes/
 │   │   │   ├── RuntimeDefinition.ts # Marker, regex, CLI fallback, env per jenis
 │   │   │   └── RuntimeManager.ts    # Scanning, legacy migration, semver matching
@@ -80,7 +91,8 @@ astra/
 │   ├── ipc/
 │   │   ├── services.ipc.ts    # IPC handlers kontrol service & shell
 │   │   ├── runtimes.ipc.ts    # IPC handlers manajemen multi-versi runtime
-│   │   └── tmp.ipc.ts         # IPC handlers tmp cleanup & template copy
+│   │   ├── tmp.ipc.ts         # IPC handlers tmp cleanup & template copy
+│   │   └── catalog.ipc.ts     # IPC handlers resolver & katalog (Fase 6A)
 │   ├── templates/             # Template konfigurasi bawaan (.tpl) — dikemas via extraResources
 │   ├── main.ts                # Main process entry point
 │   └── preload.ts             # Preload bridge

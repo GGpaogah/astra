@@ -6,15 +6,17 @@ import { app } from 'electron'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 function getAppRoot(): string {
+  // Jika app sudah ter-package (produksi), root adalah folder di samping file executable (Astra.exe)
+  // BUKAN di dalam app.asar yang bersifat read-only
   if (app && app.isPackaged) {
-    return path.dirname(app.getAppPath())
+    return path.dirname(process.execPath)
   }
+
   // Di dev, file hasil build ada di dist-electron/main.js -> root proyek 1 level ke atas
   // Jika dieksekusi dari electron/core/Paths.ts sebelum bundler -> 2 level ke atas
   const oneUp = path.resolve(__dirname, '..')
   const twoUp = path.resolve(__dirname, '..', '..')
 
-  // Cek package.json untuk menentukan root proyek yang sebenarnya
   if (fs.existsSync(path.join(oneUp, 'package.json'))) {
     return oneUp
   }

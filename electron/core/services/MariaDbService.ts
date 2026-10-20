@@ -6,12 +6,21 @@ import { BaseService } from './BaseService.ts'
 import { Paths } from '../Paths.ts'
 import { PortChecker } from '../PortChecker.ts'
 import { ConfigGenerator } from '../ConfigGenerator.ts'
+import { Settings } from '../Settings.ts'
 
 export class MariaDbService extends BaseService {
   public readonly name = 'mariadb'
   public port = 3306
 
   private configPath: string | null = null
+
+  constructor() {
+    super()
+    const settings = Settings.get()
+    if (typeof settings.mariadbPort === 'number') {
+      this.port = settings.mariadbPort
+    }
+  }
 
   public async start(): Promise<void> {
     if (this.status === 'running' || this.status === 'starting') {
@@ -61,15 +70,46 @@ export class MariaDbService extends BaseService {
       return
     }
 
-    // 5. Spawn mariadbd.exe dengan --defaults-file
+    // 5. Buat init-file SQL untuk memastikan user astra_admin siap digunakan untuk shutdown
+    const settings = Settings.get()
+    const adminUser = settings.mariadbAdminUser || 'astra_admin'
+    const adminPass = settings.mariadbAdminPassword || 'astra_secret'
+
+    const initSqlPath = path.join(Paths.data, `mariadb-init-${Date.now()}.sql`)
+    const initSql = [
+      `CREATE USER IF NOT EXISTS '${adminUser}'@'127.0.0.1' IDENTIFIED BY '${adminPass}';`,
+      `ALTER USER '${adminUser}'@'127.0.0.1' IDENTIFIED BY '${adminPass}';`,
+      `GRANT SHUTDOWN ON *.* TO '${adminUser}'@'127.0.0.1';`,
+      `FLUSH PRIVILEGES;`
+    ].join('\n')
+
+    try {
+      fs.writeFileSync(initSqlPath, initSql, 'utf-8')
+    } catch (err) {
+      this.appendLog(`[WARN] Gagal membuat init-file SQL: ${(err as Error).message}`)
+    }
+
+    // 6. Spawn mariadbd.exe dengan --defaults-file dan --init-file
     this.appendLog(`Menjalankan mariadbd.exe pada port ${this.port}...`)
+    const normalizedInitSql = initSqlPath.replace(/\\/g, '/')
     this.spawnProcess(mariadbdPath, [
       `--defaults-file=${this.configPath}`,
+      `--init-file=${normalizedInitSql}`,
       '--console'
     ])
 
-    // 6. Polling sampai port TCP merespons (siap menerima koneksi)
+    // 7. Polling sampai port TCP merespons (siap menerima koneksi)
     const isReady = await PortChecker.waitForPort(this.port, 30000, 500)
+
+    // Hapus file init SQL sementara demi keamanan
+    if (fs.existsSync(initSqlPath)) {
+      try {
+        fs.unlinkSync(initSqlPath)
+      } catch {
+        // Abaikan jika masih di-lock sejenak oleh mariadbd
+      }
+    }
+
     if (isReady && this.process && !this.process.killed) {
       this.setStatus('running')
       this.appendLog(`MariaDB berhasil berjalan dan siap melayani koneksi di port ${this.port}`)
@@ -101,10 +141,13 @@ export class MariaDbService extends BaseService {
       shutdownGraceful = await this.adminShutdown(adminPath, 10000)
     }
 
-    // Fallback ke stopProcess (tree-kill) jika graceful shutdown gagal atau timeout
-    if (!shutdownGraceful && this.process) {
-      this.appendLog('[WARN] Graceful shutdown gagal/timeout, mematikan proses via tree-kill...')
+    if (shutdownGraceful) {
+      this.appendLog('Graceful shutdown MariaDB berhasil (mariadb-admin)')
+      this.setStatus('stopped')
+    } else if (this.process) {
+      this.appendLog('[WARN] Graceful shutdown gagal/timeout, beralih ke forced kill (fallback tree-kill)...')
       await this.stopProcess()
+      this.appendLog('Forced kill MariaDB selesai')
     } else {
       this.setStatus('stopped')
     }
@@ -126,7 +169,6 @@ export class MariaDbService extends BaseService {
     }
 
     return new Promise<boolean>((resolve) => {
-      // Normalisasikan path untuk parameter CLI Windows
       const normalizedDataDir = dataDir.replace(/\\/g, '/')
       this.appendLog(`Menjalankan: ${installDbPath} --datadir="${normalizedDataDir}"`)
       const child = spawn(installDbPath, [`--datadir=${normalizedDataDir}`], {
@@ -177,6 +219,10 @@ export class MariaDbService extends BaseService {
   }
 
   private async adminShutdown(adminPath: string, timeoutMs: number): Promise<boolean> {
+    const settings = Settings.get()
+    const adminUser = settings.mariadbAdminUser || 'astra_admin'
+    const adminPass = settings.mariadbAdminPassword || 'astra_secret'
+
     return new Promise<boolean>((resolve) => {
       let resolved = false
 
@@ -187,10 +233,18 @@ export class MariaDbService extends BaseService {
         }
       }, timeoutMs)
 
+      // Gunakan env MYSQL_PWD untuk keamanan (tidak membocorkan password di proses CLI)
       const child = spawn(
         adminPath,
-        ['--protocol=tcp', '-h', '127.0.0.1', `-P`, String(this.port), '-u', 'root', 'shutdown'],
-        { windowsHide: true, shell: false }
+        ['--protocol=tcp', '-h', '127.0.0.1', `-P`, String(this.port), '-u', adminUser, 'shutdown'],
+        {
+          windowsHide: true,
+          shell: false,
+          env: {
+            ...process.env,
+            MYSQL_PWD: adminPass
+          }
+        }
       )
 
       child.on('exit', (code) => {
@@ -211,4 +265,3 @@ export class MariaDbService extends BaseService {
     })
   }
 }
-

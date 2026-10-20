@@ -37,6 +37,19 @@ function getTemplatesDir(appRoot: string): string {
   return path.join(appRoot, 'electron', 'templates')
 }
 
+/**
+ * Lokasi skrip helper (PowerShell, dll.) yang dijalankan di luar Electron:
+ * - Dev       : <root>/electron/helpers/
+ * - Packaged  : process.resourcesPath/electron/helpers/
+ *   Harus di-copy via extraResources karena tidak masuk app.asar.
+ */
+function getHelpersDir(appRoot: string): string {
+  if (app && app.isPackaged) {
+    return path.join(process.resourcesPath, 'electron', 'helpers')
+  }
+  return path.join(appRoot, 'electron', 'helpers')
+}
+
 const root = getAppRoot()
 
 // usr sub-dirs
@@ -58,6 +71,13 @@ export const Paths = {
    * Packaged: process.resourcesPath/electron/templates/ (via extraResources).
    */
   templates: getTemplatesDir(root),
+
+  /**
+   * Folder skrip helper (PowerShell, dll.) yang dijalankan di luar Electron.
+   * Dev: electron/helpers/ di repo.
+   * Packaged: process.resourcesPath/electron/helpers/ (via extraResources).
+   */
+  helpers: getHelpersDir(root),
 
   // tmp/ — file sementara PHP (sess_*, upload); flat seperti Laragon
   tmp: path.join(root, 'tmp'),

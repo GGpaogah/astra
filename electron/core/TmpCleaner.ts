@@ -87,6 +87,9 @@ export const TmpCleaner = {
       // Hanya hapus file reguler — subfolder (xdebug/, dll) TIDAK disentuh
       if (!entry.isFile()) continue
 
+      // Jangan sentuh hosts.tmp — dipakai Laragon/Astra untuk manajemen hosts
+      if (entry.name === 'hosts.tmp') continue
+
       const fullPath = path.join(Paths.tmp, entry.name)
 
       // Keamanan: verifikasi realpath tetap di dalam tmp/

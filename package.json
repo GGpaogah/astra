@@ -21,6 +21,10 @@
       {
         "from": "electron/templates",
         "to": "electron/templates"
+      },
+      {
+        "from": "electron/helpers",
+        "to": "electron/helpers"
       }
     ],
     "win": {

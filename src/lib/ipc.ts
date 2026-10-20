@@ -3,7 +3,9 @@ import type {
   ServiceLogEvent,
   ServiceStatus,
   ServiceStatusEvent,
-  PhpVersionInfo
+  RuntimeGroupInfo,
+  RuntimeSetResult,
+  RuntimePreferences
 } from '../types.d.ts'
 
 export async function ping(): Promise<string> {
@@ -38,16 +40,28 @@ export async function getLogs(name: string): Promise<string[]> {
   return window.api.getLogs(name)
 }
 
-export async function listPhpVersions(): Promise<PhpVersionInfo[]> {
-  return window.api.listPhpVersions()
+export async function listRuntimes(): Promise<RuntimeGroupInfo[]> {
+  return window.api.listRuntimes()
 }
 
-export async function getActivePhpVersion(): Promise<PhpVersionInfo | null> {
-  return window.api.getActivePhpVersion()
+export async function setRuntimeActive(type: string, folderId: string): Promise<RuntimeSetResult> {
+  return window.api.setRuntimeActive(type, folderId)
 }
 
-export async function setActivePhpVersion(version: string): Promise<PhpVersionInfo | null> {
-  return window.api.setActivePhpVersion(version)
+export async function refreshRuntimes(): Promise<RuntimeGroupInfo[]> {
+  return window.api.refreshRuntimes()
+}
+
+export async function openRuntimeFolder(type: string, folderId?: string): Promise<boolean> {
+  return window.api.openRuntimeFolder(type, folderId)
+}
+
+export async function getRuntimePreferences(): Promise<RuntimePreferences> {
+  return window.api.getRuntimePreferences()
+}
+
+export async function setRuntimeAutoRestart(enabled: boolean): Promise<RuntimePreferences> {
+  return window.api.setRuntimeAutoRestart(enabled)
 }
 
 export async function openExternal(url: string): Promise<boolean> {

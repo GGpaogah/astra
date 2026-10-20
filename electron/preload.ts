@@ -11,9 +11,13 @@ contextBridge.exposeInMainWorld('api', {
   stopAllServices: () => ipcRenderer.invoke('services:stop-all'),
   getLogs: (name: string) => ipcRenderer.invoke('services:logs', name),
 
-  listPhpVersions: () => ipcRenderer.invoke('php:list'),
-  getActivePhpVersion: () => ipcRenderer.invoke('php:get-active'),
-  setActivePhpVersion: (version: string) => ipcRenderer.invoke('php:set-active', version),
+  // Runtimes API
+  listRuntimes: () => ipcRenderer.invoke('runtimes:list'),
+  setRuntimeActive: (type: string, folderId: string) => ipcRenderer.invoke('runtimes:set-active', type, folderId),
+  refreshRuntimes: () => ipcRenderer.invoke('runtimes:refresh'),
+  openRuntimeFolder: (type: string, folderId?: string) => ipcRenderer.invoke('runtimes:open-folder', type, folderId),
+  getRuntimePreferences: () => ipcRenderer.invoke('runtimes:get-preferences'),
+  setRuntimeAutoRestart: (enabled: boolean) => ipcRenderer.invoke('runtimes:set-auto-restart', enabled),
 
   openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
   openPath: (relativePath: string) => ipcRenderer.invoke('app:open-path', relativePath),

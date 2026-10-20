@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { Paths } from './Paths.ts'
-import type { PhpVersionInfo } from './PhpManager.ts'
+import type { RuntimeVersionInfo } from './runtimes/RuntimeDefinition.ts'
+import { RuntimeManager } from './runtimes/RuntimeManager.ts'
 
 export class ConfigGenerator {
   /**
@@ -38,7 +39,11 @@ export class ConfigGenerator {
 
     const templateContent = fs.readFileSync(templatePath, 'utf-8')
 
-    const baseDir = path.join(Paths.bin, 'mariadb')
+    // Resolusi direktori MariaDB via RuntimeManager
+    const mariadbDir = RuntimeManager.getPath('mariadb')
+    if (!mariadbDir) {
+      throw new Error('Runtime MariaDB aktif tidak ditemukan')
+    }
     const dataDir = path.join(Paths.data, 'mysql')
     const logErrorFile = path.join(Paths.logs, 'mariadb', 'error.log')
 
@@ -53,7 +58,7 @@ export class ConfigGenerator {
     }
 
     const rendered = this.renderTemplate(templateContent, {
-      basedir: this.toIniPath(baseDir),
+      basedir: this.toIniPath(mariadbDir),
       datadir: this.toIniPath(dataDir),
       port,
       logerror: this.toIniPath(logErrorFile)
@@ -68,7 +73,7 @@ export class ConfigGenerator {
   /**
    * Menghasilkan konfigurasi etc/php/php.ini dari template electron/templates/php.ini.tpl
    */
-  public static generatePhpConfig(phpInfo: PhpVersionInfo): string {
+  public static generatePhpConfig(phpInfo: RuntimeVersionInfo): string {
     const templatePath = path.join(Paths.templates, 'php.ini.tpl')
     if (!fs.existsSync(templatePath)) {
       throw new Error(`Template not found at: ${templatePath}`)
@@ -129,19 +134,23 @@ export class ConfigGenerator {
   /**
    * Menghasilkan konfigurasi etc/apache/httpd.conf dari template electron/templates/httpd.conf.tpl
    */
-  public static generateApacheConfig(port: number, phpInfo: PhpVersionInfo): string {
+  public static generateApacheConfig(port: number, phpInfo: RuntimeVersionInfo): string {
     const templatePath = path.join(Paths.templates, 'httpd.conf.tpl')
     if (!fs.existsSync(templatePath)) {
       throw new Error(`Template not found at: ${templatePath}`)
     }
 
-    if (!phpInfo.modulePath || !fs.existsSync(phpInfo.modulePath)) {
-      throw new Error(`Apache module DLL untuk PHP ${phpInfo.version} tidak ditemukan`)
+    if (!phpInfo.apacheModulePath || !fs.existsSync(phpInfo.apacheModulePath)) {
+      throw new Error(`Apache module DLL untuk PHP ${phpInfo.folderId} tidak ditemukan`)
     }
 
     const templateContent = fs.readFileSync(templatePath, 'utf-8')
 
-    const srvRoot = path.join(Paths.bin, 'apache')
+    // Resolusi direktori Apache via RuntimeManager
+    const srvRoot = RuntimeManager.getPath('apache')
+    if (!srvRoot) {
+      throw new Error('Runtime Apache aktif tidak ditemukan')
+    }
     const documentRoot = Paths.www
     const phpIniDir = path.join(Paths.etc, 'php')
 
@@ -167,7 +176,7 @@ export class ConfigGenerator {
     const rendered = this.renderTemplate(templateContent, {
       srvroot: this.toIniPath(srvRoot),
       port,
-      phpmodule: this.toIniPath(phpInfo.modulePath),
+      phpmodule: this.toIniPath(phpInfo.apacheModulePath),
       phpinidir: this.toIniPath(phpIniDir),
       documentroot: this.toIniPath(documentRoot),
       errorlog: this.toIniPath(errorLogFile),

@@ -1,10 +1,9 @@
 import fs from 'node:fs'
 import { spawn } from 'node:child_process'
 import { BaseService } from './BaseService.ts'
-import { Paths } from '../Paths.ts'
 import { PortChecker } from '../PortChecker.ts'
 import { ConfigGenerator } from '../ConfigGenerator.ts'
-import { PhpManager } from '../PhpManager.ts'
+import { RuntimeManager } from '../runtimes/RuntimeManager.ts'
 import { Settings } from '../Settings.ts'
 
 export class ApacheService extends BaseService {
@@ -12,6 +11,7 @@ export class ApacheService extends BaseService {
   public port = 80
 
   private configPath: string | null = null
+  private activeHttpdExe: string | null = null
 
   constructor() {
     super()
@@ -29,32 +29,38 @@ export class ApacheService extends BaseService {
     this.setStatus('starting')
     this.appendLog('Memulai Apache pre-check...')
 
-    // 1. Validasi binary httpd.exe
-    const httpdPath = Paths.getBinPath('apache', 'bin', 'httpd.exe')
-    if (!fs.existsSync(httpdPath)) {
-      const err = `Binary httpd.exe tidak ditemukan di ${httpdPath}. Silakan unduh Apache (Win64 Thread Safe) dari Apache Lounge dan ekstrak ke bin/apache/.`
+    // 1. Validasi binary httpd.exe via RuntimeManager
+    const httpdExe = RuntimeManager.getExecutablePath('apache')
+    if (!httpdExe || !fs.existsSync(httpdExe)) {
+      const err = `Binary httpd.exe tidak ditemukan di bin/apache/. Silakan unduh Apache (Win64) dari Apache Lounge dan letakkan di bin/apache/<folder-arsip>/ atau bin/apache/.`
       this.appendLog(`[ERROR] ${err}`)
       this.setStatus('error', err)
       return
     }
+    this.activeHttpdExe = httpdExe
 
-    // 2. Validasi PHP
-    const phpInfo = PhpManager.getActive()
+    const activeApache = RuntimeManager.getActive('apache')
+    if (activeApache) {
+      this.appendLog(`Menggunakan Apache versi: ${activeApache.label}`)
+    }
+
+    // 2. Validasi PHP via RuntimeManager
+    const phpInfo = RuntimeManager.getActive('php')
     if (!phpInfo) {
-      const err = 'PHP tidak ditemukan. Letakkan PHP Thread Safe di bin/php/<versi>/ (contoh: bin/php/8.3/). Pastikan berisi php.exe dan php8apache2_4.dll.'
+      const err = 'PHP tidak ditemukan. Letakkan PHP Thread Safe di bin/php/<folder-arsip>/ (contoh: bin/php/php-8.3.16-Win32-vs16-x64/ atau bin/php/8.3/). Pastikan berisi php.exe dan php8apache2_4.dll.'
       this.appendLog(`[ERROR] ${err}`)
       this.setStatus('error', err)
       return
     }
 
-    if (!phpInfo.hasApacheModule || !phpInfo.modulePath) {
-      const err = `PHP versi ${phpInfo.version} tidak memiliki modul Apache (php8apache2_4.dll atau php7apache2_4.dll). Pastikan mengunduh PHP build Thread Safe.`
+    if (!phpInfo.isThreadSafe || !phpInfo.apacheModulePath) {
+      const err = `PHP versi ${phpInfo.folderId} adalah build NTS (Non-Thread-Safe) atau tidak memiliki modul Apache (php8apache2_4.dll). Versi NTS hanya dapat digunakan untuk PHP-CGI (Nginx). Untuk Apache, gunakan build Thread Safe.`
       this.appendLog(`[ERROR] ${err}`)
       this.setStatus('error', err)
       return
     }
 
-    this.appendLog(`Menggunakan PHP versi: ${phpInfo.version}`)
+    this.appendLog(`Menggunakan PHP versi: ${phpInfo.label}`)
 
     // 3. Validasi port 80
     const isFree = await PortChecker.isPortFree(this.port)
@@ -84,7 +90,7 @@ export class ApacheService extends BaseService {
 
     // 6. Jalankan test sintaks konfigurasi: httpd.exe -t -f <config>
     this.appendLog('Menguji sintaks konfigurasi Apache (httpd -t)...')
-    const configValid = await this.testConfig(httpdPath, this.configPath)
+    const configValid = await this.testConfig(httpdExe, this.configPath)
     if (!configValid) {
       return
     }
@@ -94,7 +100,7 @@ export class ApacheService extends BaseService {
     this.appendLog('[INFO] Catatan: Jika dialog Windows Defender Firewall muncul, izinkan akses jaringan untuk Apache.')
 
     const normalizedConfig = this.configPath.replace(/\\/g, '/')
-    this.spawnProcess(httpdPath, ['-f', normalizedConfig])
+    this.spawnProcess(httpdExe, ['-f', normalizedConfig])
 
     // 8. Polling port TCP sampai merespons
     const isReady = await PortChecker.waitForPort(this.port, 20000, 500)
@@ -120,12 +126,12 @@ export class ApacheService extends BaseService {
     this.setStatus('stopping')
     this.appendLog('Menghentikan layanan Apache...')
 
-    const httpdPath = Paths.getBinPath('apache', 'bin', 'httpd.exe')
+    const httpdExe = this.activeHttpdExe
     let gracefulOk = false
 
-    if (this.configPath && fs.existsSync(httpdPath) && this.process) {
+    if (this.configPath && httpdExe && fs.existsSync(httpdExe) && this.process) {
       this.appendLog('Mencoba graceful stop via httpd -k stop...')
-      gracefulOk = await this.gracefulStop(httpdPath, this.configPath, 8000)
+      gracefulOk = await this.gracefulStop(httpdExe, this.configPath, 8000)
     }
 
     if (gracefulOk) {

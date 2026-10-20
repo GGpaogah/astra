@@ -7,6 +7,7 @@ import { serviceManager } from "./core/ServiceManager.ts";
 import { MariaDbService } from "./core/services/MariaDbService.ts";
 import { ApacheService } from "./core/services/ApacheService.ts";
 import { registerServicesIpc } from "./ipc/services.ipc.ts";
+import { registerRuntimesIpc } from "./ipc/runtimes.ipc.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +54,7 @@ serviceManager.register(new ApacheService());
 
 // Registrasi handler IPC
 registerServicesIpc();
+registerRuntimesIpc();
 
 let isQuitting = false;
 

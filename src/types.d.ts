@@ -18,11 +18,50 @@ export interface ServiceStatusEvent {
   lastError?: string | null
 }
 
-export interface PhpVersionInfo {
-  version: string
+export type RuntimeType =
+  | 'php'
+  | 'apache'
+  | 'nginx'
+  | 'mariadb'
+  | 'postgresql'
+  | 'node'
+  | 'python'
+  | 'composer'
+
+export interface RuntimeVersionInfo {
+  type: RuntimeType
+  folderId: string
+  versionNumber: string
+  label: string
   path: string
-  hasApacheModule: boolean
-  modulePath: string | null
+  executablePath: string
+  isLegacy: boolean
+  isValid: boolean
+  invalidReason?: string
+  selectionWarning?: string
+  isThreadSafe?: boolean
+  isNtsHint?: boolean
+  apacheModulePath?: string | null
+  envPaths: string[]
+}
+
+export interface RuntimeGroupInfo {
+  type: RuntimeType
+  name: string
+  folderName: string
+  versions: RuntimeVersionInfo[]
+  active: RuntimeVersionInfo | null
+}
+
+export interface RuntimeSetResult {
+  active: RuntimeVersionInfo
+  restarted: boolean
+  restartRequired?: string | null
+  message?: string | null
+}
+
+export interface RuntimePreferences {
+  autoRestartOnRuntimeChange: boolean
 }
 
 export interface AstraApi {
@@ -35,9 +74,13 @@ export interface AstraApi {
   stopAllServices: () => Promise<ServiceInfo[]>
   getLogs: (name: string) => Promise<string[]>
 
-  listPhpVersions: () => Promise<PhpVersionInfo[]>
-  getActivePhpVersion: () => Promise<PhpVersionInfo | null>
-  setActivePhpVersion: (version: string) => Promise<PhpVersionInfo | null>
+  // Runtimes API
+  listRuntimes: () => Promise<RuntimeGroupInfo[]>
+  setRuntimeActive: (type: string, folderId: string) => Promise<RuntimeSetResult>
+  refreshRuntimes: () => Promise<RuntimeGroupInfo[]>
+  openRuntimeFolder: (type: string, folderId?: string) => Promise<boolean>
+  getRuntimePreferences: () => Promise<RuntimePreferences>
+  setRuntimeAutoRestart: (enabled: boolean) => Promise<RuntimePreferences>
 
   openExternal: (url: string) => Promise<boolean>
   openPath: (relativePath: string) => Promise<boolean>

@@ -9,6 +9,8 @@ export interface AstraSettingsData {
   apachePort?: number
   mariadbAdminUser?: string
   mariadbAdminPassword?: string
+  runtimes?: Record<string, string> // mapping: runtimeType -> folderId aktif
+  autoRestartOnRuntimeChange?: boolean
   [key: string]: unknown
 }
 
@@ -20,7 +22,9 @@ export class Settings {
       mariadbPort: 3306,
       apachePort: 80,
       mariadbAdminUser: 'astra_admin',
-      mariadbAdminPassword: crypto.randomBytes(16).toString('hex')
+      mariadbAdminPassword: crypto.randomBytes(16).toString('hex'),
+      runtimes: {},
+      autoRestartOnRuntimeChange: false
     }
   }
 
@@ -43,6 +47,14 @@ export class Settings {
       }
       if (!parsed.mariadbAdminPassword) {
         parsed.mariadbAdminPassword = crypto.randomBytes(16).toString('hex')
+        modified = true
+      }
+      if (!parsed.runtimes) {
+        parsed.runtimes = {}
+        modified = true
+      }
+      if (typeof parsed.autoRestartOnRuntimeChange !== 'boolean') {
+        parsed.autoRestartOnRuntimeChange = false
         modified = true
       }
 

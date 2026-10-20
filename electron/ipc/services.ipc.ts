@@ -1,7 +1,6 @@
 import { ipcMain, shell } from 'electron'
 import path from 'node:path'
 import { serviceManager } from '../core/ServiceManager.ts'
-import { PhpManager } from '../core/PhpManager.ts'
 import { Paths } from '../core/Paths.ts'
 
 export function registerServicesIpc(): void {
@@ -65,33 +64,6 @@ export function registerServicesIpc(): void {
       throw new Error(`Service "${name}" not found`)
     }
     return service.getLogs()
-  })
-
-  // PHP management
-  ipcMain.handle('php:list', () => {
-    return PhpManager.listVersions()
-  })
-
-  ipcMain.handle('php:get-active', () => {
-    return PhpManager.getActive()
-  })
-
-  ipcMain.handle('php:set-active', async (_event, versionName: unknown) => {
-    if (typeof versionName !== 'string') {
-      throw new Error('Version name must be a string')
-    }
-    const ok = PhpManager.setActive(versionName)
-    if (!ok) {
-      throw new Error(`Versi PHP "${versionName}" tidak ditemukan`)
-    }
-
-    // Jika Apache sedang berjalan, restart Apache agar versi PHP baru aktif
-    const apacheService = serviceManager.get('apache')
-    if (apacheService && apacheService.getStatus() === 'running') {
-      await apacheService.restart()
-    }
-
-    return PhpManager.getActive()
   })
 
   // Shell & Path opening with strict validation

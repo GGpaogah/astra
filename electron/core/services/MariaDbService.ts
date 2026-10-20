@@ -6,6 +6,7 @@ import { BaseService } from './BaseService.ts'
 import { Paths } from '../Paths.ts'
 import { PortChecker } from '../PortChecker.ts'
 import { ConfigGenerator } from '../ConfigGenerator.ts'
+import { RuntimeManager } from '../runtimes/RuntimeManager.ts'
 import { Settings } from '../Settings.ts'
 
 export class MariaDbService extends BaseService {
@@ -13,6 +14,7 @@ export class MariaDbService extends BaseService {
   public port = 3306
 
   private configPath: string | null = null
+  private activeAdminPath: string | null = null
 
   constructor() {
     super()
@@ -30,14 +32,20 @@ export class MariaDbService extends BaseService {
     this.setStatus('starting')
     this.appendLog('Memulai MariaDB pre-check...')
 
-    // 1. Validasi keberadaan binary mariadbd.exe
-    const mariadbdPath = Paths.getBinPath('mariadb', 'bin', 'mariadbd.exe')
-    if (!fs.existsSync(mariadbdPath)) {
-      const err = `Binary mariadbd.exe tidak ditemukan di ${mariadbdPath}. Silakan unduh MariaDB ZIP (Windows x64) dan ekstrak foldernya ke bin/mariadb/.`
+    // 1. Validasi keberadaan binary mariadbd.exe via RuntimeManager
+    const mariadbdExe = RuntimeManager.getExecutablePath('mariadb')
+    if (!mariadbdExe || !fs.existsSync(mariadbdExe)) {
+      const err = `Binary mariadbd.exe tidak ditemukan di bin/mariadb/. Silakan unduh MariaDB ZIP (Windows x64) dan letakkan di bin/mariadb/<folder-arsip>/ atau bin/mariadb/.`
       this.appendLog(`[ERROR] ${err}`)
       this.setStatus('error', err)
       return
     }
+
+    const activeMariaDb = RuntimeManager.getActive('mariadb')
+    if (activeMariaDb) {
+      this.appendLog(`Menggunakan MariaDB versi: ${activeMariaDb.label}`)
+    }
+    this.activeAdminPath = RuntimeManager.getExecutablePath('mariadb', 'admin')
 
     // 2. Validasi ketersediaan port
     const isFree = await PortChecker.isPortFree(this.port)
@@ -92,7 +100,7 @@ export class MariaDbService extends BaseService {
     // 6. Spawn mariadbd.exe dengan --defaults-file dan --init-file
     this.appendLog(`Menjalankan mariadbd.exe pada port ${this.port}...`)
     const normalizedInitSql = initSqlPath.replace(/\\/g, '/')
-    this.spawnProcess(mariadbdPath, [
+    this.spawnProcess(mariadbdExe, [
       `--defaults-file=${this.configPath}`,
       `--init-file=${normalizedInitSql}`,
       '--console'
@@ -132,13 +140,12 @@ export class MariaDbService extends BaseService {
     this.setStatus('stopping')
     this.appendLog('Menghentikan layanan MariaDB...')
 
-    const adminPath = Paths.getBinPath('mariadb', 'bin', 'mariadb-admin.exe')
     let shutdownGraceful = false
 
     // Coba shutdown graceful via mariadb-admin jika binary ada
-    if (fs.existsSync(adminPath) && this.process) {
+    if (this.activeAdminPath && fs.existsSync(this.activeAdminPath) && this.process) {
       this.appendLog('Mencoba graceful shutdown via mariadb-admin...')
-      shutdownGraceful = await this.adminShutdown(adminPath, 10000)
+      shutdownGraceful = await this.adminShutdown(this.activeAdminPath, 10000)
     }
 
     if (shutdownGraceful) {
@@ -156,8 +163,9 @@ export class MariaDbService extends BaseService {
   }
 
   private async initDatabase(dataDir: string): Promise<boolean> {
-    const installDbPath = Paths.getBinPath('mariadb', 'bin', 'mariadb-install-db.exe')
-    if (!fs.existsSync(installDbPath)) {
+    const installDbPath = RuntimeManager.getExecutablePath('mariadb', 'installDb')
+
+    if (!installDbPath || !fs.existsSync(installDbPath)) {
       const err = `Binary mariadb-install-db.exe tidak ditemukan di ${installDbPath}`
       this.appendLog(`[ERROR] ${err}`)
       this.setStatus('error', err)

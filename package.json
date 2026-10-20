@@ -25,6 +25,10 @@
       {
         "from": "electron/helpers",
         "to": "electron/helpers"
+      },
+      {
+        "from": "catalog",
+        "to": "catalog"
       }
     ],
     "win": {

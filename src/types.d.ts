@@ -83,6 +83,33 @@ export interface CopyTemplateResult {
   alreadyExists: boolean
 }
 
+export type VersionChannel = 'stable' | 'lts' | 'latest'
+
+export interface CatalogEntry {
+  type: RuntimeType
+  version: string
+  channel: VersionChannel
+  platform: 'win32'
+  arch: 'x64'
+  url: string
+  archiveRoot?: string
+  sha256?: string
+  label?: string
+}
+
+export interface ResolveResult {
+  type: RuntimeType
+  channel: VersionChannel
+  version: string
+  url: string
+  archiveRoot?: string
+  sha256?: string
+  label: string
+  fromCache: boolean
+  needsManualVerification: boolean
+  warnings: string[]
+}
+
 export interface AstraApi {
   ping: () => Promise<string>
   listServices: () => Promise<ServiceInfo[]>
@@ -106,6 +133,13 @@ export interface AstraApi {
   cleanTmp: () => Promise<TmpCleanResult>
   listBuiltinTemplates: () => Promise<string[]>
   copyBuiltinTemplate: (name: string) => Promise<CopyTemplateResult>
+
+  // Catalog / Resolver API
+  resolveLatest: (type: string, channel: string, forceRefresh?: boolean) => Promise<ResolveResult>
+  getCachedResolution: (type: string, channel: string) => Promise<ResolveResult | null>
+  invalidateResolverCache: (type?: string) => Promise<boolean>
+  listCatalog: () => Promise<CatalogEntry[]>
+  validateDownloadUrl: (url: string) => Promise<{ valid: boolean; reason?: string }>
 
   openExternal: (url: string) => Promise<boolean>
   openPath: (relativePath: string) => Promise<boolean>

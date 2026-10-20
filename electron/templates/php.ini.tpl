@@ -26,6 +26,8 @@ file_uploads = On
 upload_max_filesize = 64M
 max_file_uploads = 20
 post_max_size = 64M
+upload_tmp_dir = "{{upload_tmp_dir}}"
+sys_temp_dir = "{{sys_temp_dir}}"
 
 extension_dir = "{{extensiondir}}"
 
@@ -66,6 +68,3 @@ session.use_trans_sid = 0
 session.sid_length = 26
 session.trans_sid_tags = "a=href,area=href,frame=src,form="
 session.sid_bits_per_character = 5
-
-upload_tmp_dir = "{{upload_tmp_dir}}"
-sys_temp_dir = "{{sys_temp_dir}}"

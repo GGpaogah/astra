@@ -9,6 +9,7 @@ import { ApacheService } from "./core/services/ApacheService.ts";
 import { registerServicesIpc } from "./ipc/services.ipc.ts";
 import { registerRuntimesIpc } from "./ipc/runtimes.ipc.ts";
 import { registerTmpIpc } from "./ipc/tmp.ipc.ts";
+import { registerCatalogIpc } from "./ipc/catalog.ipc.ts";
 import { TmpCleaner } from "./core/TmpCleaner.ts";
 import { Settings } from "./core/Settings.ts";
 
@@ -59,6 +60,7 @@ serviceManager.register(new ApacheService());
 registerServicesIpc();
 registerRuntimesIpc();
 registerTmpIpc();
+registerCatalogIpc();
 
 // Bersihkan tmp/ saat aplikasi start
 try {

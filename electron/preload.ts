@@ -25,6 +25,17 @@ contextBridge.exposeInMainWorld('api', {
   listBuiltinTemplates: () => ipcRenderer.invoke('tmp:list-builtin-templates'),
   copyBuiltinTemplate: (name: string) => ipcRenderer.invoke('tmp:copy-builtin-template', name),
 
+  // Catalog / Resolver API
+  resolveLatest: (type: string, channel: string, forceRefresh?: boolean) =>
+    ipcRenderer.invoke('catalog:resolve-latest', type, channel, forceRefresh),
+  getCachedResolution: (type: string, channel: string) =>
+    ipcRenderer.invoke('catalog:get-cached', type, channel),
+  invalidateResolverCache: (type?: string) =>
+    ipcRenderer.invoke('catalog:invalidate-cache', type),
+  listCatalog: () => ipcRenderer.invoke('catalog:list'),
+  validateDownloadUrl: (url: string) =>
+    ipcRenderer.invoke('catalog:validate-url', url),
+
   openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
   openPath: (relativePath: string) => ipcRenderer.invoke('app:open-path', relativePath),
 

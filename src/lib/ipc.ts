@@ -8,7 +8,9 @@ import type {
   RuntimePreferences,
   TmpSizeResult,
   TmpCleanResult,
-  CopyTemplateResult
+  CopyTemplateResult,
+  ResolveResult,
+  CatalogEntry
 } from '../types.d.ts'
 
 export async function ping(): Promise<string> {
@@ -90,6 +92,36 @@ export async function listBuiltinTemplates(): Promise<string[]> {
 
 export async function copyBuiltinTemplate(name: string): Promise<CopyTemplateResult> {
   return window.api.copyBuiltinTemplate(name)
+}
+
+// Catalog / Resolver API
+export async function resolveLatest(
+  type: string,
+  channel: string,
+  forceRefresh?: boolean
+): Promise<ResolveResult> {
+  return window.api.resolveLatest(type, channel, forceRefresh)
+}
+
+export async function getCachedResolution(
+  type: string,
+  channel: string
+): Promise<ResolveResult | null> {
+  return window.api.getCachedResolution(type, channel)
+}
+
+export async function invalidateResolverCache(type?: string): Promise<boolean> {
+  return window.api.invalidateResolverCache(type)
+}
+
+export async function listCatalog(): Promise<CatalogEntry[]> {
+  return window.api.listCatalog()
+}
+
+export async function validateDownloadUrl(
+  url: string
+): Promise<{ valid: boolean; reason?: string }> {
+  return window.api.validateDownloadUrl(url)
 }
 
 export function onServiceStatus(callback: (data: ServiceStatusEvent) => void): () => void {

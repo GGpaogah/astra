@@ -13,6 +13,12 @@ export interface AstraSettingsData {
   autoRestartOnRuntimeChange?: boolean
   /** Usia maksimum file sesi PHP (hari) sebelum dibersihkan. Default: 7 */
   tmpSessionMaxAgeDays?: number
+  /**
+   * Versi konkret yang terakhir di-resolve per runtime+channel.
+   * Hanya metadata informasional untuk UI (Fase 6B). Tidak mempengaruhi versi aktif.
+   * Format: { "php:stable": "8.3.16", "node:lts": "20.19.0" }
+   */
+  resolvedVersions?: Record<string, string>
   [key: string]: unknown
 }
 

@@ -16,3 +16,4 @@ performance_schema = OFF
 [client]
 port = {{port}}
 default-character-set = utf8mb4
+

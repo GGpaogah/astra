@@ -9,8 +9,19 @@ function getAppRoot(): string {
   if (app && app.isPackaged) {
     return path.dirname(app.getAppPath())
   }
-  // Di dev, file ada di electron/core/Paths.ts -> root proyek 2 level ke atas
-  return path.resolve(__dirname, '..', '..')
+  // Di dev, file hasil build ada di dist-electron/main.js -> root proyek 1 level ke atas
+  // Jika dieksekusi dari electron/core/Paths.ts sebelum bundler -> 2 level ke atas
+  const oneUp = path.resolve(__dirname, '..')
+  const twoUp = path.resolve(__dirname, '..', '..')
+
+  // Cek package.json untuk menentukan root proyek yang sebenarnya
+  if (fs.existsSync(path.join(oneUp, 'package.json'))) {
+    return oneUp
+  }
+  if (fs.existsSync(path.join(twoUp, 'package.json'))) {
+    return twoUp
+  }
+  return process.cwd()
 }
 
 const root = getAppRoot()

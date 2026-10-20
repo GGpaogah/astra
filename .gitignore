@@ -32,3 +32,5 @@ dist-ssr
 # Data directories
 data
 bin
+release
+dist-electron

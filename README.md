@@ -1,32 +1,35 @@
-# React + TypeScript + Vite
+# Astra — Local Web Dev Environment (mirip XAMPP/Laragon)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplikasi desktop untuk menjalankan Apache/Nginx + PHP + MariaDB secara portable, lengkap dengan virtual host otomatis (`namaproyek.test`).
 
-Currently, two official plugins are available:
+## Tujuan MVP
+1. Start / Stop / Restart service: Apache, MariaDB
+2. Pilih versi PHP (portable, bisa lebih dari satu)
+3. Tombol buka folder `www`, buka `localhost`, buka phpMyAdmin
+4. Viewer log real-time
+5. Deteksi port bentrok (80, 443, 3306)
+6. Virtual host otomatis dari nama folder di `www/`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Di Luar MVP (fase berikutnya)
+- Nginx, Node.js, Redis, PostgreSQL
+- SSL lokal (mkcert)
+- Tray icon + autostart
+- Quick create project (Laravel, WordPress)
+- Auto-update binary
 
-## React Compiler
+## Tech Stack
+| Lapisan | Pilihan |
+|---|---|
+| Shell desktop | Electron |
+| Bahasa | TypeScript |
+| UI | React + Vite + Tailwind |
+| Proses | Node `child_process` |
+| Config store | File JSON via `fs` |
+| Packaging | electron-builder |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Dokumen
+- `SETUP.md` — cara menyiapkan proyek dari nol
+- `ARCHITECTURE.md` — struktur folder & desain modul
+- `ROADMAP_PROMPTS.md` — urutan prompt vibe coding per fase
+- `CLAUDE.md` — konteks untuk AI coding assistant (taruh di root proyek)
+- `SETUP_HERMES.md` — menyambungkan Hermes Agent (VM Proxmox) ke VS Code via Remote-SSH

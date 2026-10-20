@@ -126,8 +126,10 @@ export class MariaDbService extends BaseService {
     }
 
     return new Promise<boolean>((resolve) => {
-      this.appendLog(`Menjalankan: ${installDbPath} --datadir="${dataDir}"`)
-      const child = spawn(installDbPath, [`--datadir=${dataDir}`], {
+      // Normalisasikan path untuk parameter CLI Windows
+      const normalizedDataDir = dataDir.replace(/\\/g, '/')
+      this.appendLog(`Menjalankan: ${installDbPath} --datadir="${normalizedDataDir}"`)
+      const child = spawn(installDbPath, [`--datadir=${normalizedDataDir}`], {
         windowsHide: true,
         shell: false
       })
@@ -209,3 +211,4 @@ export class MariaDbService extends BaseService {
     })
   }
 }
+

@@ -2,8 +2,24 @@
   "name": "astra",
   "private": true,
   "version": "0.0.0",
+  "description": "Local web dev environment (Apache, PHP, MariaDB)",
+  "author": "Muhammad Aqmal",
   "type": "module",
   "main": "dist-electron/main.js",
+  "build": {
+    "appId": "com.astra.app",
+    "productName": "Astra",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
@@ -24,7 +40,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^44.9.0",
-    "electron-builder": "^26.15.3",
+    "electron-builder": "^26.5.0",
     "oxlint": "^1.88.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~7.0.2",

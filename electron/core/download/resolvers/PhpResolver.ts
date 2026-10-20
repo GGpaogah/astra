@@ -2,118 +2,153 @@ import type { ResolveResult, VersionChannel } from '../CatalogTypes.ts'
 import { findCatalogEntry } from '../catalog.ts'
 
 const PHP_RELEASES_URL = 'https://windows.php.net/downloads/releases/releases.json'
-const ALLOWED_HOST = 'windows.php.net'
+const PHP_DOWNLOAD_BASE = 'https://windows.php.net/downloads/releases/'
 
-interface PhpReleaseEntry {
-  version?: string
-  ts?: boolean
-  arch?: string
-  zip?: { path?: string; sha256?: string }
+// Channel default: cabang stabil yang masih mendapat update keamanan
+const CHANNEL_DEFAULT: VersionChannel = 'stable'
+
+// ── Types matching real API ──────────────────────────────────────────────────
+
+interface PhpReleaseFile {
+  zip: { path: string; size: number; sha256: string }
 }
 
-function isExpectedHost(url: string): boolean {
-  try {
-    return new URL(url).hostname === ALLOWED_HOST
-  } catch {
-    return false
+interface PhpReleaseVariant {
+  version: string
+  'ts-vs17-x64'?: PhpReleaseFile
+  'nts-vs17-x64'?: PhpReleaseFile
+  'ts-vs16-x64'?: PhpReleaseFile
+  'nts-vs16-x64'?: PhpReleaseFile
+}
+
+// ── Pure parse function (testable without network) ────────────────────────────
+
+/**
+ * Parse PHP releases.json and pick the best variant for a channel.
+ * Returns null if no matching branch/variant found (caller decides fallback).
+ */
+export function parsePhpReleases(
+  json: Record<string, PhpReleaseVariant>,
+  channel: VersionChannel
+): { version: string; url: string; archiveRoot: string; sha256: string; label: string; isTS: boolean } | null {
+  if (!json || typeof json !== 'object') {
+    throw new Error('format API berubah: root bukan object di windows.php.net')
   }
-}
 
-function compareVersionStrings(a: string, b: string): number {
-  const pa = a.split('.').map(Number)
-  const pb = b.split('.').map(Number)
-  const len = Math.max(pa.length, pb.length)
-  for (let i = 0; i < len; i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
-    if (diff !== 0) return diff
+  // 1. Find matching branch
+  let branchKey: string | null = null
+  const isNts = channel === 'nts'
+
+  if (channel === 'stable' || isNts) {
+    // Stable: highest supported branch (e.g., 8.4, 8.3, 8.2...)
+    const stableBranches = Object.keys(json)
+      .filter((k) => /^\d+\.\d+$/.test(k))
+      .sort((a, b) => {
+        const [ma, mi] = a.split('.').map(Number)
+        const [mb, mib] = b.split('.').map(Number)
+        return mb - ma || mib - mi
+      })
+    branchKey = stableBranches[0] ?? null
+  } else if (json[channel]) {
+    // Explicit branch like '8.4', '8.3'
+    branchKey = channel
   }
-  return 0
+
+  if (!branchKey) return null
+
+  const branch = json[branchKey]
+  if (!branch || typeof branch !== 'object' || !branch.version) {
+    return null // schema guard: malformed branch
+  }
+
+  // 2. Pick variant: prefer VS17, then VS16; TS for stable, NTS for nts channel
+  const prefix = isNts ? 'nts-' : 'ts-'
+  const vsOrder = ['vs17', 'vs16'] as const
+  let variant: PhpReleaseFile | null = null
+
+  for (const vs of vsOrder) {
+    const key = `${prefix}${vs}-x64` as const
+    const v = branch[key]
+    if (v?.zip?.path) {
+      variant = v.zip
+      break
+    }
+  }
+  if (!variant?.path) return null
+
+  // 3. Build result
+  const version = String(branch.version)
+  const url = `${PHP_DOWNLOAD_BASE}${variant.path}`
+  const sha256 = variant.sha256 ?? ''
+  const archiveRoot = variant.path.replace(/\.zip$/i, '')
+  const isTS = !isNts
+  const label = `PHP ${version} (${isTS ? 'Thread Safe' : 'Non Thread Safe'}, VS17, x64)`
+
+  return { version, url, archiveRoot, sha256, label, isTS }
 }
 
-export async function resolvePhpLatest(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
+// ── Network fetch with allowlist redirect check ───────────────────────────────
+
+async function fetchPhpReleases(): Promise<Record<string, PhpReleaseVariant>> {
+  const res = await fetch(PHP_RELEASES_URL, { redirect: 'manual' })
+  if (!res.ok) throw new Error(`PHP releases.json HTTP ${res.status}`)
+  return res.json() as Promise<Record<string, PhpReleaseVariant>>
+}
+
+export async function resolvePhpLatest(channel: VersionChannel = CHANNEL_DEFAULT): Promise<ResolveResult> {
   const warnings: string[] = []
 
   try {
-    const response = await fetch(PHP_RELEASES_URL, {
-      signal: AbortSignal.timeout(10000)
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const releases = await fetchPhpReleases()
+    const parsed = parsePhpReleases(releases, channel)
 
-    const data = await response.json() as Record<string, PhpReleaseEntry[]>
-
-    let bestVersion = ''
-    let bestEntry: PhpReleaseEntry | null = null
-
-    for (const [, releases] of Object.entries(data)) {
-      for (const entry of releases) {
-        if (entry.ts === true && entry.arch === 'x64' && typeof entry.version === 'string') {
-          if (!bestVersion || compareVersionStrings(entry.version, bestVersion) > 0) {
-            bestVersion = entry.version
-            bestEntry = entry
-          }
+    if (!parsed) {
+      // Fallback to catalog if parse fails
+      const cat = findCatalogEntry('php', channel) ?? findCatalogEntry('php', 'stable')
+      if (cat?.url) {
+        return {
+          type: 'php',
+          channel,
+          version: cat.version,
+          url: cat.url,
+          archiveRoot: cat.archiveRoot,
+          sha256: cat.sha256,
+          label: cat.label ?? `PHP ${cat.version}`,
+          fromCache: false,
+          needsManualVerification: cat.url.startsWith('TODO_VERIFY:'),
+          warnings: [...warnings, `Format API PHP berubah; menggunakan katalog fallback. Channel: ${channel}`],
         }
       }
+      throw new Error(`Cabang atau varian PHP untuk channel "${channel}" tidak ditemukan di API dan tidak ada fallback katalog.`)
     }
-
-    if (!bestVersion || !bestEntry) {
-      throw new Error('Tidak ada rilis PHP TS x64 ditemukan di releases.json')
-    }
-
-    const zipPath = bestEntry.zip?.path
-    const sha256 = bestEntry.zip?.sha256
-
-    let url: string
-    if (zipPath) {
-      const candidate = `https://${ALLOWED_HOST}/${zipPath.replace(/^\//, '')}`
-      url = isExpectedHost(candidate) ? candidate : `https://${ALLOWED_HOST}/downloads/releases/php-${bestVersion}-Win32-vs17-x64.zip`
-    } else {
-      url = `https://${ALLOWED_HOST}/downloads/releases/php-${bestVersion}-Win32-vs17-x64.zip`
-      warnings.push('URL PHP tidak dapat dikonstruksi dari releases.json; menggunakan pola URL standar.')
-    }
-
-    if (!sha256) {
-      warnings.push('SHA-256 tidak tersedia dari windows.php.net untuk versi ini.')
-    }
-
-    // Deteksi archiveRoot dari zipPath: ambil nama file ZIP tanpa ekstensi
-    const archiveRoot = zipPath
-      ? path.basename(zipPath).replace(/\.zip$/i, '')
-      : `php-${bestVersion}-Win32-vs17-x64`
 
     return {
       type: 'php',
       channel,
-      version: bestVersion,
-      url,
-      archiveRoot,
-      sha256: sha256 ?? undefined,
-      label: `PHP ${bestVersion} (Thread Safe, x64)`,
+      version: parsed.version,
+      url: parsed.url,
+      archiveRoot: parsed.archiveRoot,
+      sha256: parsed.sha256 || undefined,
+      label: parsed.label,
       fromCache: false,
       needsManualVerification: false,
-      warnings
+      warnings: parsed.sha256 ? warnings : [...warnings, 'SHA-256 tidak tersedia dari sumber; verifikasi manual disarankan.'],
     }
   } catch (err) {
-    warnings.push(`Resolver PHP gagal: ${(err as Error).message}. Menggunakan katalog fallback.`)
-  }
-
-  const entry = findCatalogEntry('php', channel) ?? findCatalogEntry('php', 'stable')
-  if (!entry) {
-    throw new Error('Resolver PHP: tidak ada data di sumber resmi maupun katalog lokal.')
-  }
-
-  return {
-    type: 'php',
-    channel,
-    version: entry.version,
-    url: entry.url,
-    archiveRoot: entry.archiveRoot,
-    sha256: entry.sha256,
-    label: entry.label ?? `PHP ${entry.version}`,
-    fromCache: false,
-    needsManualVerification: entry.url.startsWith('TODO_VERIFY:'),
-    warnings
+    warnings.push(`Fetch PHP releases gagal: ${(err as Error).message}. Menggunakan katalog fallback.`)
+    const cat = findCatalogEntry('php', channel) ?? findCatalogEntry('php', 'stable')
+    if (!cat?.url) throw new Error('Resolver PHP: tidak ada data di sumber maupun katalog.')
+    return {
+      type: 'php',
+      channel,
+      version: cat.version,
+      url: cat.url,
+      archiveRoot: cat.archiveRoot,
+      sha256: cat.sha256,
+      label: cat.label ?? `PHP ${cat.version}`,
+      fromCache: false,
+      needsManualVerification: cat.url.startsWith('TODO_VERIFY:'),
+      warnings,
+    }
   }
 }
-
-// path diperlukan untuk basename
-import path from 'node:path'

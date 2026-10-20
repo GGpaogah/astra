@@ -17,6 +17,8 @@ Dokumen: `README.md`, `ARCHITECTURE.md`, `ROADMAP_PROMPTS.md` (peta fase; jangan
 - Password/token tidak boleh lewat argumen proses (pakai env atau file kredensial di `data/`, tidak di Git).
 - Error ditangani dengan pesan jelas ke UI, tanpa crash diam-diam. Log: ring buffer 1000 baris (main), 500 baris (UI).
 - Tanpa dependency baru kecuali disebut di tugas; tanyakan dulu.
+- Berkas yang dieksekusi proses eksternal (skrip .ps1, .exe, .cmd) TIDAK boleh berada di dalam `app.asar`. Sertakan lewat `extraResources` dan ambil path-nya dari `Paths` (`process.resourcesPath` saat `app.isPackaged`).
+- Setiap berkas baru yang dibaca saat runtime (template, skrip, aset) harus dipastikan ikut terkemas: periksa `build.files` dan `build.extraResources` di package.json.
 
 ## Aturan teknis
 - Package manager: npm saja. Jangan buat `pnpm-lock.yaml`. Jangan commit `package-lock.json` dari Linux.

@@ -13,7 +13,8 @@ import { registerCatalogIpc } from "./ipc/catalog.ipc.ts";
 import { registerDownloadIpc } from "./ipc/download.ipc.ts";
 import { TmpCleaner } from "./core/TmpCleaner.ts";
 import { Settings } from "./core/Settings.ts";
-import { downloadManager } from "./core/download/DownloadManager.ts";
+import { downloadManager, cleanupOrphanTmpFolders } from "./core/download/DownloadManager.ts";
+import { purgeStaleVerificationCache } from "./core/download/ResolverCache.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -64,6 +65,16 @@ registerRuntimesIpc();
 registerTmpIpc();
 registerCatalogIpc();
 registerDownloadIpc();
+
+// Bersihkan folder __tmp_* sisa download yang gagal/dibatalkan
+cleanupOrphanTmpFolders();
+
+// Purge cache entri yang masih needsManualVerification (fix resolver langsung terasa)
+try {
+  purgeStaleVerificationCache();
+} catch (err) {
+  console.warn('[ResolverCache] Gagal purge stale verification cache:', err);
+}
 
 // Bersihkan tmp/ saat aplikasi start
 try {

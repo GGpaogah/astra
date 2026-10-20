@@ -6,14 +6,12 @@ import { app } from 'electron'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 function getAppRoot(): string {
-  // Jika app sudah ter-package (produksi), root adalah folder di samping file executable (Astra.exe)
-  // BUKAN di dalam app.asar yang bersifat read-only
+  // Produksi: root adalah folder di samping Astra.exe (bukan di dalam app.asar)
   if (app && app.isPackaged) {
     return path.dirname(process.execPath)
   }
 
-  // Di dev, file hasil build ada di dist-electron/main.js -> root proyek 1 level ke atas
-  // Jika dieksekusi dari electron/core/Paths.ts sebelum bundler -> 2 level ke atas
+  // Dev: dist-electron/main.js -> satu level ke atas = root proyek
   const oneUp = path.resolve(__dirname, '..')
   const twoUp = path.resolve(__dirname, '..', '..')
 
@@ -24,6 +22,19 @@ function getAppRoot(): string {
     return twoUp
   }
   return process.cwd()
+}
+
+/**
+ * Lokasi template .tpl:
+ * - Dev       : <root>/electron/templates/
+ * - Packaged  : process.resourcesPath/electron/templates/
+ *   Template tidak masuk app.asar (read-only), dikemas via extraResources di electron-builder.
+ */
+function getTemplatesDir(appRoot: string): string {
+  if (app && app.isPackaged) {
+    return path.join(process.resourcesPath, 'electron', 'templates')
+  }
+  return path.join(appRoot, 'electron', 'templates')
 }
 
 const root = getAppRoot()
@@ -40,7 +51,13 @@ export const Paths = {
   etc: path.join(root, 'etc'),
   logs: path.join(root, 'logs'),
   www: path.join(root, 'www'),
-  templates: path.join(root, 'electron', 'templates'),
+
+  /**
+   * Folder template bawaan .tpl.
+   * Dev: electron/templates/ di repo.
+   * Packaged: process.resourcesPath/electron/templates/ (via extraResources).
+   */
+  templates: getTemplatesDir(root),
 
   // tmp/ — file sementara PHP (sess_*, upload); flat seperti Laragon
   tmp: path.join(root, 'tmp'),
@@ -58,7 +75,6 @@ export const Paths = {
       Paths.logs,
       Paths.www,
       Paths.tmp,
-      // usr sub-dirs
       Paths.usr,
       Paths.usrTpl,
       Paths.usrBin,

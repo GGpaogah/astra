@@ -1,0 +1,70 @@
+{
+  "8.4": {
+    "version": "8.4.26",
+    "ts-vs17-x64": {
+      "mtime": "2026-09-22T15:50:06+00:00",
+      "zip": {
+        "path": "php-8.4.26-Win32-vs17-x64.zip",
+        "size": "33.51MB",
+        "sha256": "6e56f0e932e92bfdce208d3a7e6068f6e2f7a19fc2922a5f856fb085f61673f3"
+      },
+      "debug_pack": {
+        "path": "php-debug-pack-8.4.26-Win32-vs17-x64.zip",
+        "size": "39.97MB",
+        "sha256": "f1da87a5a94ac97b89119b3da72c013b0c6b3a520bc9f28fe78f876c7937fb35"
+      },
+      "devel_pack": {
+        "path": "php-devel-pack-8.4.26-Win32-vs17-x64.zip",
+        "size": "1.36MB",
+        "sha256": "34de521ec706455e578b8a60343740056bb0532d3e1b82f440225354fd06e7b7"
+      }
+    },
+    "nts-vs17-x64": {
+      "mtime": "2026-09-22T15:50:06+00:00",
+      "zip": {
+        "path": "php-8.4.26-nts-Win32-vs17-x64.zip",
+        "size": "33.41MB",
+        "sha256": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+      },
+      "debug_pack": {
+        "path": "php-debug-pack-8.4.26-nts-Win32-vs17-x64.zip",
+        "size": "39.87MB",
+        "sha256": "b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567"
+      },
+      "devel_pack": {
+        "path": "php-devel-pack-8.4.26-nts-Win32-vs17-x64.zip",
+        "size": "1.36MB",
+        "sha256": "c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678"
+      }
+    },
+    "source": {
+      "path": "php-8.4.26-src.zip",
+      "size": "30.09MB",
+      "sha256": "abaca319deb54e5e0af9c3fba606b23e54964dad5c96fe54a63931b0f8bc2d04"
+    },
+    "test_pack": {
+      "path": "php-test-pack-8.4.26.zip",
+      "size": "17.73MB",
+      "sha256": "5503ce8b17756dd26f9986f7b873305aded5090ad241c89381bb24c42d77f8a2"
+    }
+  },
+  "8.3": {
+    "version": "8.3.14",
+    "ts-vs16-x64": {
+      "mtime": "2024-10-24T12:30:00+00:00",
+      "zip": {
+        "path": "php-8.3.14-Win32-vs16-x64.zip",
+        "size": "33.21MB",
+        "sha256": "d4e5f6789012345678901234567890abcdef1234567890abcdef1234567890ab"
+      }
+    },
+    "nts-vs16-x64": {
+      "mtime": "2024-10-24T12:30:00+00:00",
+      "zip": {
+        "path": "php-8.3.14-nts-Win32-vs16-x64.zip",
+        "size": "33.11MB",
+        "sha256": "e5f6789012345678901234567890abcdef1234567890abcdef1234567890abc"
+      }
+    }
+  }
+}

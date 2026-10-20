@@ -1,0 +1,16 @@
+{
+  "version": "3.13.2",
+  "url": "https://www.python.org/ftp/python/3.13.2/python-3.13.2-embeddable-amd64.zip",
+  "checksums": {
+    "sha256": "3c4e92c8a9c38e8e8f9f5d8c4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+    "asc": "https://www.python.org/ftp/python/3.13.2/python-3.13.2-embeddable-amd64.zip.asc"
+  },
+  "files": [
+    "python-3.13.2-embeddable-amd64.zip",
+    "python-3.13.2-embeddable-amd64.zip.asc",
+    "python-3.13.2-embed-arm64.zip",
+    "python-3.13.2-embed-arm64.zip.asc",
+    "python-3.13.2-embed-win32.zip",
+    "python-3.13.2-embed-win32.zip.asc"
+  ]
+}

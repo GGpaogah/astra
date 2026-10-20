@@ -19,6 +19,7 @@ import {
 import { ServiceCard } from '../components/ServiceCard.tsx'
 import { LogViewer } from '../components/LogViewer.tsx'
 import { VersionsPage } from './VersionsPage.tsx'
+import { TmpPanel } from '../components/TmpPanel.tsx'
 
 export function Dashboard() {
   const [currentTab, setCurrentTab] = useState<'services' | 'versions'>('services')
@@ -420,6 +421,9 @@ export function Dashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Tmp Panel */}
+              <TmpPanel />
             </section>
 
             {/* Right: Live Log Viewer */}

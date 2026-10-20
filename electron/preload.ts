@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld('api', {
   getRuntimePreferences: () => ipcRenderer.invoke('runtimes:get-preferences'),
   setRuntimeAutoRestart: (enabled: boolean) => ipcRenderer.invoke('runtimes:set-auto-restart', enabled),
 
+  // Tmp API
+  getTmpSize: () => ipcRenderer.invoke('tmp:size'),
+  cleanTmp: () => ipcRenderer.invoke('tmp:clean'),
+  listBuiltinTemplates: () => ipcRenderer.invoke('tmp:list-builtin-templates'),
+  copyBuiltinTemplate: (name: string) => ipcRenderer.invoke('tmp:copy-builtin-template', name),
+
   openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
   openPath: (relativePath: string) => ipcRenderer.invoke('app:open-path', relativePath),
 

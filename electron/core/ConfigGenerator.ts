@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { Paths } from './Paths.ts'
+import { TemplateResolver } from './TemplateResolver.ts'
 import type { RuntimeVersionInfo } from './runtimes/RuntimeDefinition.ts'
 import { RuntimeManager } from './runtimes/RuntimeManager.ts'
 
@@ -29,16 +30,9 @@ export class ConfigGenerator {
   }
 
   /**
-   * Menghasilkan konfigurasi etc/mariadb/my.ini dari template electron/templates/my.ini.tpl
+   * Menghasilkan konfigurasi etc/mariadb/my.ini dari template (usr/tpl/my.ini.tpl atau bawaan)
    */
   public static generateMariaDbConfig(port: number): string {
-    const templatePath = path.join(Paths.templates, 'my.ini.tpl')
-    if (!fs.existsSync(templatePath)) {
-      throw new Error(`Template not found at: ${templatePath}`)
-    }
-
-    const templateContent = fs.readFileSync(templatePath, 'utf-8')
-
     // Resolusi direktori MariaDB via RuntimeManager
     const mariadbDir = RuntimeManager.getPath('mariadb')
     if (!mariadbDir) {
@@ -57,12 +51,21 @@ export class ConfigGenerator {
       fs.mkdirSync(logsMariaDbDir, { recursive: true })
     }
 
-    const rendered = this.renderTemplate(templateContent, {
+    const vars = {
       basedir: this.toIniPath(mariadbDir),
       datadir: this.toIniPath(dataDir),
       port,
       logerror: this.toIniPath(logErrorFile)
-    })
+    }
+
+    const { rendered, warning } = TemplateResolver.renderTemplate(
+      'my.ini.tpl',
+      vars,
+      this.renderTemplate.bind(this)
+    )
+    if (warning) {
+      console.warn(`[ConfigGenerator] ${warning}`)
+    }
 
     const targetIniPath = path.join(targetDir, 'my.ini')
     fs.writeFileSync(targetIniPath, rendered, 'utf-8')
@@ -71,15 +74,10 @@ export class ConfigGenerator {
   }
 
   /**
-   * Menghasilkan konfigurasi etc/php/php.ini dari template electron/templates/php.ini.tpl
+   * Menghasilkan konfigurasi etc/php/php.ini dari template (usr/tpl/php.ini.tpl atau bawaan)
+   * Folder tmp/sessions dan tmp/uploads dipastikan ada sebelum dikonfigurasi ke php.ini.
    */
   public static generatePhpConfig(phpInfo: RuntimeVersionInfo): string {
-    const templatePath = path.join(Paths.templates, 'php.ini.tpl')
-    if (!fs.existsSync(templatePath)) {
-      throw new Error(`Template not found at: ${templatePath}`)
-    }
-
-    const templateContent = fs.readFileSync(templatePath, 'utf-8')
     const extDir = path.join(phpInfo.path, 'ext')
 
     // Daftar ekstensi yang disarankan
@@ -117,13 +115,33 @@ export class ConfigGenerator {
       fs.mkdirSync(logsPhpDir, { recursive: true })
     }
 
+    // Pastikan folder tmp ada sebelum dikonfigurasi
+    if (!fs.existsSync(Paths.tmpSessions)) {
+      fs.mkdirSync(Paths.tmpSessions, { recursive: true })
+    }
+    if (!fs.existsSync(Paths.tmpUploads)) {
+      fs.mkdirSync(Paths.tmpUploads, { recursive: true })
+    }
+
     const logErrorFile = path.join(logsPhpDir, 'error.log')
 
-    const rendered = this.renderTemplate(templateContent, {
+    const vars = {
       extensiondir: this.toIniPath(extDir),
       extensions: extensionLines.join('\n'),
-      errorlog: this.toIniPath(logErrorFile)
-    })
+      errorlog: this.toIniPath(logErrorFile),
+      session_save_path: this.toIniPath(Paths.tmpSessions),
+      upload_tmp_dir: this.toIniPath(Paths.tmpUploads),
+      sys_temp_dir: this.toIniPath(Paths.tmp)
+    }
+
+    const { rendered, warning } = TemplateResolver.renderTemplate(
+      'php.ini.tpl',
+      vars,
+      this.renderTemplate.bind(this)
+    )
+    if (warning) {
+      console.warn(`[ConfigGenerator] ${warning}`)
+    }
 
     const targetIniPath = path.join(targetDir, 'php.ini')
     fs.writeFileSync(targetIniPath, rendered, 'utf-8')
@@ -132,19 +150,12 @@ export class ConfigGenerator {
   }
 
   /**
-   * Menghasilkan konfigurasi etc/apache/httpd.conf dari template electron/templates/httpd.conf.tpl
+   * Menghasilkan konfigurasi etc/apache/httpd.conf dari template (usr/tpl/httpd.conf.tpl atau bawaan)
    */
   public static generateApacheConfig(port: number, phpInfo: RuntimeVersionInfo): string {
-    const templatePath = path.join(Paths.templates, 'httpd.conf.tpl')
-    if (!fs.existsSync(templatePath)) {
-      throw new Error(`Template not found at: ${templatePath}`)
-    }
-
     if (!phpInfo.apacheModulePath || !fs.existsSync(phpInfo.apacheModulePath)) {
       throw new Error(`Apache module DLL untuk PHP ${phpInfo.folderId} tidak ditemukan`)
     }
-
-    const templateContent = fs.readFileSync(templatePath, 'utf-8')
 
     // Resolusi direktori Apache via RuntimeManager
     const srvRoot = RuntimeManager.getPath('apache')
@@ -173,7 +184,7 @@ export class ConfigGenerator {
     const accessLogFile = path.join(logsApacheDir, 'access.log')
     const pidFile = path.join(targetDir, 'httpd.pid')
 
-    const rendered = this.renderTemplate(templateContent, {
+    const vars = {
       srvroot: this.toIniPath(srvRoot),
       port,
       phpmodule: this.toIniPath(phpInfo.apacheModulePath),
@@ -183,7 +194,16 @@ export class ConfigGenerator {
       accesslog: this.toIniPath(accessLogFile),
       pidfile: this.toIniPath(pidFile),
       vhostsdir: this.toIniPath(vhostsDir)
-    })
+    }
+
+    const { rendered, warning } = TemplateResolver.renderTemplate(
+      'httpd.conf.tpl',
+      vars,
+      this.renderTemplate.bind(this)
+    )
+    if (warning) {
+      console.warn(`[ConfigGenerator] ${warning}`)
+    }
 
     const targetConfPath = path.join(targetDir, 'httpd.conf')
     fs.writeFileSync(targetConfPath, rendered, 'utf-8')

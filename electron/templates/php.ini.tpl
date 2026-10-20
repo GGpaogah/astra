@@ -45,6 +45,7 @@ mysqli.reconnect = Off
 
 [Session]
 session.save_handler = files
+session.save_path = "{{session_save_path}}"
 session.use_strict_mode = 0
 session.use_cookies = 1
 session.use_only_cookies = 1
@@ -65,3 +66,9 @@ session.use_trans_sid = 0
 session.sid_length = 26
 session.trans_sid_tags = "a=href,area=href,frame=src,form="
 session.sid_bits_per_character = 5
+
+[upload]
+upload_tmp_dir = "{{upload_tmp_dir}}"
+
+[sys]
+sys_temp_dir = "{{sys_temp_dir}}"

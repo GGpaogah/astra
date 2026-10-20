@@ -11,6 +11,8 @@ export interface AstraSettingsData {
   mariadbAdminPassword?: string
   runtimes?: Record<string, string> // mapping: runtimeType -> folderId aktif
   autoRestartOnRuntimeChange?: boolean
+  /** Usia maksimum file sesi PHP (hari) sebelum dibersihkan. Default: 7 */
+  tmpSessionMaxAgeDays?: number
   [key: string]: unknown
 }
 
@@ -24,7 +26,8 @@ export class Settings {
       mariadbAdminUser: 'astra_admin',
       mariadbAdminPassword: crypto.randomBytes(16).toString('hex'),
       runtimes: {},
-      autoRestartOnRuntimeChange: false
+      autoRestartOnRuntimeChange: false,
+      tmpSessionMaxAgeDays: 7
     }
   }
 
@@ -55,6 +58,10 @@ export class Settings {
       }
       if (typeof parsed.autoRestartOnRuntimeChange !== 'boolean') {
         parsed.autoRestartOnRuntimeChange = false
+        modified = true
+      }
+      if (typeof parsed.tmpSessionMaxAgeDays !== 'number' || parsed.tmpSessionMaxAgeDays < 1) {
+        parsed.tmpSessionMaxAgeDays = 7
         modified = true
       }
 

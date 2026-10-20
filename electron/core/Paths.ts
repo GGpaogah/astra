@@ -28,6 +28,16 @@ function getAppRoot(): string {
 
 const root = getAppRoot()
 
+// tmp sub-dirs
+const tmp = path.join(root, 'tmp')
+const tmpSessions = path.join(tmp, 'sessions')
+const tmpUploads = path.join(tmp, 'uploads')
+
+// usr sub-dirs
+const usr = path.join(root, 'usr')
+const usrTpl = path.join(usr, 'tpl')
+const usrBin = path.join(usr, 'bin')
+
 export const Paths = {
   root,
   bin: path.join(root, 'bin'),
@@ -37,13 +47,31 @@ export const Paths = {
   www: path.join(root, 'www'),
   templates: path.join(root, 'electron', 'templates'),
 
+  // tmp/ — file sementara PHP (session, upload); aman dihapus
+  tmp,
+  tmpSessions,
+  tmpUploads,
+
+  // usr/ — override pengguna (tpl) dan binary tambahan (bin)
+  usr,
+  usrTpl,
+  usrBin,
+
   ensureDirs(): void {
     const dirsToEnsure = [
       Paths.bin,
       Paths.data,
       Paths.etc,
       Paths.logs,
-      Paths.www
+      Paths.www,
+      // tmp sub-dirs
+      Paths.tmp,
+      Paths.tmpSessions,
+      Paths.tmpUploads,
+      // usr sub-dirs
+      Paths.usr,
+      Paths.usrTpl,
+      Paths.usrBin,
     ]
     for (const dir of dirsToEnsure) {
       if (!fs.existsSync(dir)) {
@@ -54,6 +82,14 @@ export const Paths = {
 
   getBinPath(...parts: string[]): string {
     return path.join(Paths.bin, ...parts)
+  },
+
+  /**
+   * Direktori tambahan untuk PATH saat Terminal dijalankan (Fase 10).
+   * Mengembalikan [usr/bin] agar binary user-installed tersedia.
+   */
+  getExtraPathDirs(): string[] {
+    return [Paths.usrBin]
   }
 } as const
 

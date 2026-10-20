@@ -5,7 +5,10 @@ import type {
   ServiceStatusEvent,
   RuntimeGroupInfo,
   RuntimeSetResult,
-  RuntimePreferences
+  RuntimePreferences,
+  TmpSizeResult,
+  TmpCleanResult,
+  CopyTemplateResult
 } from '../types.d.ts'
 
 export async function ping(): Promise<string> {
@@ -70,6 +73,23 @@ export async function openExternal(url: string): Promise<boolean> {
 
 export async function openPath(relativePath: string): Promise<boolean> {
   return window.api.openPath(relativePath)
+}
+
+// Tmp API
+export async function getTmpSize(): Promise<TmpSizeResult> {
+  return window.api.getTmpSize()
+}
+
+export async function cleanTmp(): Promise<TmpCleanResult> {
+  return window.api.cleanTmp()
+}
+
+export async function listBuiltinTemplates(): Promise<string[]> {
+  return window.api.listBuiltinTemplates()
+}
+
+export async function copyBuiltinTemplate(name: string): Promise<CopyTemplateResult> {
+  return window.api.copyBuiltinTemplate(name)
 }
 
 export function onServiceStatus(callback: (data: ServiceStatusEvent) => void): () => void {

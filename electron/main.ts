@@ -8,6 +8,9 @@ import { MariaDbService } from "./core/services/MariaDbService.ts";
 import { ApacheService } from "./core/services/ApacheService.ts";
 import { registerServicesIpc } from "./ipc/services.ipc.ts";
 import { registerRuntimesIpc } from "./ipc/runtimes.ipc.ts";
+import { registerTmpIpc } from "./ipc/tmp.ipc.ts";
+import { TmpCleaner } from "./core/TmpCleaner.ts";
+import { Settings } from "./core/Settings.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +58,21 @@ serviceManager.register(new ApacheService());
 // Registrasi handler IPC
 registerServicesIpc();
 registerRuntimesIpc();
+registerTmpIpc();
+
+// Bersihkan tmp/ saat aplikasi start
+try {
+  const settings = Settings.get();
+  const maxDays = settings.tmpSessionMaxAgeDays ?? 7;
+  const cleanResult = TmpCleaner.clean(maxDays);
+  if (cleanResult.totalFiles > 0) {
+    console.log(
+      `[TmpCleaner] Startup cleanup: ${cleanResult.totalFiles} file (${cleanResult.freedFormatted}) dihapus`
+    );
+  }
+} catch (err) {
+  console.warn('[TmpCleaner] Gagal membersihkan tmp/ saat startup:', err);
+}
 
 let isQuitting = false;
 

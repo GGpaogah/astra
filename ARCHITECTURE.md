@@ -8,10 +8,12 @@ Astra adalah aplikasi desktop lingkungan pengembangan web lokal (Apache, PHP, Ma
 
 1. **Portabel & Terisolasi**:
    - Semua binary runtime diletakkan di dalam folder `bin/`.
-   - File konfigurasi yang digunakan runtime di-generate ke dalam `etc/` dari template di `electron/templates/`.
+   - File konfigurasi yang digunakan runtime di-generate ke dalam `etc/` dari template di `electron/templates/` (dapat di-override pengguna via `usr/tpl/`).
    - Data persisten disimpan di `data/` (misal `data/mysql`).
    - File log disimpan terpusat di `logs/`.
    - Dokumen web user disimpan di `www/`.
+   - File sementara PHP (session, upload) disimpan di `tmp/sessions/` dan `tmp/uploads/`. Dibersihkan otomatis saat startup dan via tombol UI.
+   - Binary tambahan user disimpan di `usr/bin/` (dipakai PATH di Terminal, Fase 10).
    - Pada build produksi, root aplikasi adalah folder di samping `Astra.exe` (bukan di dalam `app.asar`).
 
 2. **Generic Runtime Manager (Struktur Folder ala Laragon)**:
@@ -51,13 +53,21 @@ astra/
 │   ├── php/                   # php.ini
 │   └── mariadb/               # my.ini
 ├── logs/                      # Log file dari service dan runtime
+├── tmp/                       # File sementara PHP (aman dihapus)
+│   ├── sessions/              # session.save_path PHP (sess_*)
+│   └── uploads/               # upload_tmp_dir PHP
+├── usr/                       # Kustomisasi pengguna (ala Laragon)
+│   ├── tpl/                   # Override template konfigurasi (.tpl)
+│   └── bin/                   # Binary tambahan user (masuk PATH di Terminal)
 ├── www/                       # Root direktori web user & phpMyAdmin
 ├── electron/
 │   ├── core/
 │   │   ├── Paths.ts           # Manajemen path terpusat (dev & packaged)
 │   │   ├── Settings.ts        # Penyimpanan settings JSON atomik
 │   │   ├── PortChecker.ts     # Health-check socket & TCP probing
-│   │   ├── ConfigGenerator.ts # Generator konfigurasi dari template
+│   │   ├── ConfigGenerator.ts # Generator konfigurasi dari template (via TemplateResolver)
+│   │   ├── TemplateResolver.ts# Resolusi template usr/tpl → electron/templates fallback
+│   │   ├── TmpCleaner.ts      # Pembersih file sementara PHP di tmp/
 │   │   ├── ServiceManager.ts  # Orkestrasi startAll/stopAll & log batching
 │   │   ├── runtimes/
 │   │   │   ├── RuntimeDefinition.ts # Marker, regex, CLI fallback, env per jenis
@@ -68,15 +78,29 @@ astra/
 │   │       └── MariaDbService.ts    # Manajemen lifecycle MariaDB
 │   ├── ipc/
 │   │   ├── services.ipc.ts    # IPC handlers kontrol service & shell
-│   │   └── runtimes.ipc.ts    # IPC handlers manajemen multi-versi runtime
-│   ├── templates/             # Template konfigurasi (.tpl)
+│   │   ├── runtimes.ipc.ts    # IPC handlers manajemen multi-versi runtime
+│   │   └── tmp.ipc.ts         # IPC handlers tmp cleanup & template copy
+│   ├── templates/             # Template konfigurasi bawaan (.tpl)
 │   ├── main.ts                # Main process entry point
 │   └── preload.ts             # Preload bridge
 └── src/                       # Frontend React + Tailwind v4
-    ├── components/            # ServiceCard, LogViewer
+    ├── components/            # ServiceCard, LogViewer, TmpPanel
     ├── pages/                 # Dashboard, VersionsPage
     └── lib/                   # IPC wrappers
 ```
+
+---
+
+## 2b. Urutan Resolusi Template
+
+`TemplateResolver.renderTemplate(name, vars)` memeriksa dengan urutan:
+
+1. **`usr/tpl/<name>`** — override pengguna. Jika ada dan berhasil dirender, dipakai.
+2. **Fallback ke `electron/templates/<name>`** — jika template pengguna tidak ada, tidak bisa dibaca, atau menghasilkan placeholder tidak dikenal `{{...}}`.
+
+Pada fallback, peringatan dicetak ke console dan akan ditampilkan di log UI. Aplikasi tidak crash.
+
+Aksi "Salin template bawaan ke usr/tpl/" tersedia di UI; file yang sudah ada tidak ditimpa.
 
 ---
 

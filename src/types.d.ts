@@ -64,6 +64,25 @@ export interface RuntimePreferences {
   autoRestartOnRuntimeChange: boolean
 }
 
+export interface TmpSizeResult {
+  bytes: number
+  formatted: string
+}
+
+export interface TmpCleanResult {
+  sessionFiles: number
+  uploadFiles: number
+  totalFiles: number
+  totalBytes: number
+  freedFormatted: string
+}
+
+export interface CopyTemplateResult {
+  name: string
+  copied: boolean
+  alreadyExists: boolean
+}
+
 export interface AstraApi {
   ping: () => Promise<string>
   listServices: () => Promise<ServiceInfo[]>
@@ -81,6 +100,12 @@ export interface AstraApi {
   openRuntimeFolder: (type: string, folderId?: string) => Promise<boolean>
   getRuntimePreferences: () => Promise<RuntimePreferences>
   setRuntimeAutoRestart: (enabled: boolean) => Promise<RuntimePreferences>
+
+  // Tmp API
+  getTmpSize: () => Promise<TmpSizeResult>
+  cleanTmp: () => Promise<TmpCleanResult>
+  listBuiltinTemplates: () => Promise<string[]>
+  copyBuiltinTemplate: (name: string) => Promise<CopyTemplateResult>
 
   openExternal: (url: string) => Promise<boolean>
   openPath: (relativePath: string) => Promise<boolean>

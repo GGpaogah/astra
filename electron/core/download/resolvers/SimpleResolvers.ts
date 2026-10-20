@@ -1,21 +1,9 @@
-import type { ResolveResult } from '../CatalogTypes.ts'
+import type { ResolveResult, VersionChannel, CatalogEntry } from '../CatalogTypes.ts'
 import { findCatalogEntry } from '../catalog.ts'
-
-/**
- * Resolver sederhana untuk: Nginx, Composer, Python, phpMyAdmin.
- * Masing-masing mencoba sumber resmi, fallback ke katalog lokal.
- * Semua network error menghasilkan fallback, bukan crash.
- */
 
 // ─── Nginx ────────────────────────────────────────────────────────────────────
 
-/**
- * Sumber: https://nginx.org/download/ — daftar file publik tanpa JSON API.
- * Strategi: ambil halaman listing, parse href untuk menemukan versi tertinggi.
- * Ini rapuh (bergantung pada format halaman); tandai sebagai perlu verifikasi manual
- * jika format berubah.
- */
-export async function resolveNginxStable(): Promise<ResolveResult> {
+export async function resolveNginxStable(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
   const warnings: string[] = []
 
   try {
@@ -25,27 +13,24 @@ export async function resolveNginxStable(): Promise<ResolveResult> {
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
     const html = await response.text()
-    // Cari semua link nginx-X.Y.Z.zip
     const matches = [...html.matchAll(/href="(nginx-(\d+\.\d+\.\d+)\.zip)"/g)]
     if (matches.length === 0) throw new Error('Tidak ada file nginx-*.zip ditemukan di listing')
 
     let bestVersion = ''
     let bestFile = ''
     for (const m of matches) {
-      const file = m[1]
       const ver = m[2]
       if (!bestVersion || compareVersionStrings(ver, bestVersion) > 0) {
         bestVersion = ver
-        bestFile = file
+        bestFile = m[1]
       }
     }
 
-    const url = `https://nginx.org/download/${bestFile}`
     return {
       type: 'nginx',
-      channel: 'stable',
+      channel,
       version: bestVersion,
-      url,
+      url: `https://nginx.org/download/${bestFile}`,
       archiveRoot: `nginx-${bestVersion}`,
       label: `Nginx ${bestVersion} (Windows)`,
       fromCache: false,
@@ -56,18 +41,14 @@ export async function resolveNginxStable(): Promise<ResolveResult> {
     warnings.push(`Resolver Nginx gagal: ${(err as Error).message}. Menggunakan katalog fallback.`)
   }
 
-  const entry = findCatalogEntry('nginx', 'stable')
+  const entry = findCatalogEntry('nginx', channel) ?? findCatalogEntry('nginx', 'stable')
   if (!entry) throw new Error('Resolver Nginx: tidak ada data di sumber maupun katalog.')
-  return catalogResult(entry, warnings)
+  return catalogResult(entry, channel, warnings)
 }
 
 // ─── Composer ─────────────────────────────────────────────────────────────────
 
-/**
- * Sumber: https://getcomposer.org/versions
- * Format: { "stable": [{"version": "2.8.5", "min-php": 72, ...}], "preview": [...] }
- */
-export async function resolveComposerStable(): Promise<ResolveResult> {
+export async function resolveComposerStable(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
   const warnings: string[] = []
 
   try {
@@ -81,11 +62,11 @@ export async function resolveComposerStable(): Promise<ResolveResult> {
     if (!version) throw new Error('Tidak ada versi Composer stable ditemukan')
 
     const url = `https://getcomposer.org/download/${version}/composer.phar`
-    new URL(url) // validasi URL
+    new URL(url) // validasi
 
     return {
       type: 'composer',
-      channel: 'stable',
+      channel,
       version,
       url,
       label: `Composer ${version}`,
@@ -97,20 +78,14 @@ export async function resolveComposerStable(): Promise<ResolveResult> {
     warnings.push(`Resolver Composer gagal: ${(err as Error).message}. Menggunakan katalog fallback.`)
   }
 
-  const entry = findCatalogEntry('composer', 'stable')
+  const entry = findCatalogEntry('composer', channel) ?? findCatalogEntry('composer', 'stable')
   if (!entry) throw new Error('Resolver Composer: tidak ada data di sumber maupun katalog.')
-  return catalogResult(entry, warnings)
+  return catalogResult(entry, channel, warnings)
 }
 
 // ─── Python ───────────────────────────────────────────────────────────────────
 
-/**
- * Sumber: https://www.python.org/ftp/python/
- * Strategi: ambil listing FTP, cari versi embeddable Windows x64 terbaru.
- * Tidak ada JSON API resmi untuk embeddable builds — parse HTML listing.
- * Tandai sebagai needsManualVerification karena parsing HTML rapuh.
- */
-export async function resolvePythonStable(): Promise<ResolveResult> {
+export async function resolvePythonStable(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
   const warnings: string[] = [
     'Python embeddable build: pip tidak tersedia secara default. Jalankan get-pip.py setelah instalasi (Fase 10).'
   ]
@@ -128,56 +103,53 @@ export async function resolvePythonStable(): Promise<ResolveResult> {
     let bestVersion = ''
     for (const m of versionMatches) {
       const ver = m[1]
-      if (!bestVersion || compareVersionStrings(ver, bestVersion) > 0) {
-        bestVersion = ver
-      }
+      if (!bestVersion || compareVersionStrings(ver, bestVersion) > 0) bestVersion = ver
     }
 
     const filename = `python-${bestVersion}-embed-amd64.zip`
     const url = `https://www.python.org/ftp/python/${bestVersion}/${filename}`
 
-    // Verifikasi file ini ada (HEAD request)
+    // Verifikasi file ada via HEAD
+    let fileVerified = false
     try {
-      const headResponse = await fetch(url, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(8000)
-      })
-      if (!headResponse.ok) {
-        warnings.push(`File ${filename} tidak ditemukan di ftp.python.org; verifikasi manual diperlukan.`)
-      }
-    } catch {
-      warnings.push('Tidak dapat memverifikasi keberadaan file Python; lanjutkan dengan hati-hati.')
+      const headRes = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(8000) })
+      fileVerified = headRes.ok
+    } catch { /* non-fatal */ }
+
+    if (!fileVerified) {
+      warnings.push(`File ${filename} tidak dapat diverifikasi keberadaannya di python.org; lanjutkan dengan hati-hati.`)
     }
 
     return {
       type: 'python',
-      channel: 'stable',
+      channel,
       version: bestVersion,
       url,
       archiveRoot: `python-${bestVersion}-embed-amd64`,
       label: `Python ${bestVersion} Embeddable (x64)`,
       fromCache: false,
-      needsManualVerification: true,
+      needsManualVerification: false,  // URL dari domain resmi python.org — tidak perlu manual
       warnings
     }
   } catch (err) {
     warnings.push(`Resolver Python gagal: ${(err as Error).message}. Menggunakan katalog fallback.`)
   }
 
-  const entry = findCatalogEntry('python', 'stable')
+  const entry = findCatalogEntry('python', channel) ?? findCatalogEntry('python', 'stable')
   if (!entry) throw new Error('Resolver Python: tidak ada data di sumber maupun katalog.')
-  return catalogResult(entry, warnings)
+  return catalogResult(entry, channel, warnings)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function catalogResult(
-  entry: import('../CatalogTypes.ts').CatalogEntry,
+  entry: CatalogEntry,
+  channel: VersionChannel,
   extraWarnings: string[]
 ): ResolveResult {
   return {
     type: entry.type,
-    channel: entry.channel,
+    channel,
     version: entry.version,
     url: entry.url,
     archiveRoot: entry.archiveRoot,

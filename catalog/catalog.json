@@ -24,43 +24,63 @@
     },
     {
       "type": "mariadb",
-      "version": "12.3",
+      "version": "12.3.3",
       "channel": "lts",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://downloads.mariadb.org/rest-api/mariadb/12.3/mariadb-12.3-winx64.zip",
-      "archiveRoot": "mariadb-12.3-winx64",
-      "label": "MariaDB 12.3 LTS (x64)"
+      "url": "https://downloads.mariadb.org/rest-api/mariadb/12.3.3/mariadb-12.3.3-winx64.zip",
+      "archiveRoot": "mariadb-12.3.3-winx64",
+      "label": "MariaDB 12.3.3 (x64)"
+    },
+    {
+      "type": "mariadb",
+      "version": "12.3.3",
+      "channel": "lts",
+      "platform": "win32",
+      "arch": "x64",
+      "url": "https://downloads.mariadb.org/rest-api/mariadb/12.3.3/mariadb-12.3.3-winx64.zip",
+      "archiveRoot": "mariadb-12.3.3-winx64",
+      "label": "MariaDB 12.3.3 LTS (x64)"
     },
     {
       "type": "node",
-      "version": "26.9.0",
-      "channel": "Current",
+      "version": "24.22.0",
+      "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://nodejs.org/dist/v26.9.0/node-v26.9.0-win-x64.zip",
-      "archiveRoot": "node-v26.9.0-win-x64",
-      "label": "Node.js 26.9.0 Current (x64)"
+      "url": "https://nodejs.org/dist/v24.22.0/node-v24.22.0-win-x64.zip",
+      "archiveRoot": "node-v24.22.0-win-x64",
+      "label": "Node.js 24.22.0 (x64)"
+    },
+    {
+      "type": "node",
+      "version": "22.17.1",
+      "channel": "lts",
+      "platform": "win32",
+      "arch": "x64",
+      "url": "https://nodejs.org/dist/v22.17.1/node-v22.17.1-win-x64.zip",
+      "archiveRoot": "node-v22.17.1-win-x64",
+      "label": "Node.js 22.17.1 LTS (x64)"
     },
     {
       "type": "nginx",
-      "version": "1.29.8",
+      "version": "1.27.3",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://nginx.org/download/nginx-1.29.8.zip",
-      "archiveRoot": "nginx-1.29.8",
-      "label": "Nginx 1.29.8 (Windows)"
+      "url": "https://nginx.org/download/nginx-1.27.3.zip",
+      "archiveRoot": "nginx-1.27.3",
+      "label": "Nginx 1.27.3 (Windows)"
     },
     {
       "type": "python",
-      "version": "3.13.9",
+      "version": "3.13.1",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://www.python.org/ftp/python/3.13.9/python-3.13.9-embed-amd64.zip",
-      "archiveRoot": "python-3.13.9-embed-amd64",
-      "label": "Python 3.13.9 Embeddable (x64)"
+      "url": "https://www.python.org/ftp/python/3.13.1/python-3.13.1-embed-amd64.zip",
+      "archiveRoot": "python-3.13.1-embed-amd64",
+      "label": "Python 3.13.1 Embeddable (x64)"
     },
     {
       "type": "composer",
@@ -70,6 +90,16 @@
       "arch": "x64",
       "url": "https://getcomposer.org/download/2.10.3/composer.phar",
       "label": "Composer 2.10.3"
+    },
+    {
+      "type": "postgresql",
+      "version": "17.5",
+      "channel": "stable",
+      "platform": "win32",
+      "arch": "x64",
+      "url": "https://get.enterprisedb.com/postgresql/postgresql-17.5-1-windows-x64-binaries.zip",
+      "archiveRoot": "pgsql",
+      "label": "PostgreSQL 17.5 (x64, binaries)"
     }
   ]
 }

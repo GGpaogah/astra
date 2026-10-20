@@ -14,6 +14,7 @@ import {
 /** Domain yang diizinkan untuk URL unduhan runtime */
 const ALLOWED_DOMAINS = new Set([
   'windows.php.net',
+  'downloads.php.net',          // arsip rilis PHP (termasuk ~windows/releases/archives/)
   'nodejs.org',
   'downloads.mariadb.org',
   'dlm.mariadb.com',
@@ -25,6 +26,7 @@ const ALLOWED_DOMAINS = new Set([
   'files.apachelounge.com',
   'www.apachelounge.com',
   'apachelounge.com',
+  'get.enterprisedb.com',       // PostgreSQL binaries
 ])
 
 /**
@@ -130,38 +132,36 @@ async function dispatchResolver(
 ): Promise<ResolveResult> {
   switch (type) {
     case 'php':
-      return resolvePhpLatest()
+      return resolvePhpLatest(channel)
 
     case 'node':
-      return resolveNodeLts()
+      return resolveNodeLts(channel)
 
     case 'mariadb':
-      return resolveMariaDbLts()
+      return resolveMariaDbLts(channel)
 
     case 'nginx':
-      return resolveNginxStable()
+      return resolveNginxStable(channel)
 
     case 'composer':
-      return resolveComposerStable()
+      return resolveComposerStable(channel)
 
     case 'python':
-      return resolvePythonStable()
+      return resolvePythonStable(channel)
 
     case 'apache':
       // Apache Lounge menerapkan hotlink protection — tidak bisa di-resolve otomatis.
-      // Kembalikan dari katalog dengan TODO_VERIFY.
       return resolveFallbackOnly(type, channel, [
         'Apache Lounge menerapkan hotlink protection. URL unduhan harus diisi manual di Settings atau diverifikasi sebelum instalasi.'
       ])
 
     case 'postgresql':
-      // Implementasi resolver PostgreSQL direncanakan di Fase 8B.
+      // Resolver PostgreSQL direncanakan di Fase 8B.
       return resolveFallbackOnly(type, channel, [
         'Resolver PostgreSQL belum diimplementasikan (dijadwalkan Fase 8B). Menggunakan katalog jika tersedia.'
       ])
 
     default: {
-      // TypeScript exhaustiveness — jenis runtime baru butuh resolver baru
       const _exhaustive: never = type
       throw new Error(`Tidak ada resolver untuk runtime "${String(_exhaustive)}"`)
     }

@@ -78,16 +78,29 @@ function validateCatalog(raw: unknown): RuntimeCatalog {
 }
 
 let _cache: RuntimeCatalog | null = null
+let _cachePath: string | null = null
+let _cacheMtime: number = 0
 
 /**
  * Muat dan validasi catalog.json.
- * Hasil di-cache in-memory selama proses berjalan.
+ * Cache in-memory dengan deteksi perubahan file (mtime).
  * Lempar Error jika file tidak ada, rusak, atau schema tidak valid.
  */
 export function loadCatalog(forceReload = false): RuntimeCatalog {
-  if (_cache && !forceReload) return _cache
-
   const catalogPath = getCatalogPath()
+
+  // Deteksi perubahan file agar cache tidak stale saat user mengedit catalog.json
+  let currentMtime = 0
+  try {
+    currentMtime = fs.statSync(catalogPath).mtimeMs
+  } catch {
+    // file tidak ada — akan ditangani di bawah
+  }
+
+  if (_cache && !forceReload && _cachePath === catalogPath && currentMtime === _cacheMtime) {
+    return _cache
+  }
+
   if (!fs.existsSync(catalogPath)) {
     throw new Error(`Katalog runtime tidak ditemukan di: ${catalogPath}`)
   }
@@ -100,6 +113,8 @@ export function loadCatalog(forceReload = false): RuntimeCatalog {
   }
 
   _cache = validateCatalog(raw)
+  _cachePath = catalogPath
+  _cacheMtime = currentMtime
   return _cache
 }
 

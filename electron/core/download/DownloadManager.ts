@@ -348,7 +348,7 @@ class DownloadManagerClass extends EventEmitter {
           `Periksa nilai archiveRoot di catalog.json.`
         )
       }
-      // Verifikasi tidak ada path traversal di dalam folder inner
+      // Verifikasi tidak ada path traversal
       const realTmp = fs.realpathSync(tmpDest)
       const realInner = fs.realpathSync(inner)
       if (!realInner.startsWith(realTmp + path.sep)) {
@@ -358,9 +358,38 @@ class DownloadManagerClass extends EventEmitter {
       sourceDir = inner
     }
 
-    // Hapus destPath lama jika ada lalu rename
+    // Hapus destPath lama jika ada
     safeRmDir(destPath)
-    fs.renameSync(sourceDir, destPath)
+
+    // rename/copy sourceDir → destPath, lalu bersihkan tmpDest
+    let moveSuccess = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        fs.renameSync(sourceDir, destPath)
+        moveSuccess = true
+        break
+      } catch {
+        if (attempt < 2) {
+          await new Promise<void>((r) => setTimeout(r, 500))
+        } else {
+          try {
+            fs.cpSync(sourceDir, destPath, { recursive: true })
+            moveSuccess = true
+          } catch (copyErr) {
+            safeRmDir(tmpDest)
+            throw new Error(
+              `Gagal memindahkan hasil ekstraksi: fallback copy gagal: ${(copyErr as Error).message}`
+            )
+          }
+        }
+      }
+    }
+    if (!moveSuccess) {
+      safeRmDir(tmpDest)
+      throw new Error('Gagal memindahkan hasil ekstraksi ke bin/')
+    }
+
+    // Bersihkan tmpDest (parent folder sementara) setelah rename/copy
     safeRmDir(tmpDest)
   }
 

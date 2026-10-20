@@ -1,3 +1,7 @@
+> **Note:** This is the original Vite starter template documentation generated when the project was scaffolded. It is not part of the Astra project documentation. It can be deleted in a separate cleanup task.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.

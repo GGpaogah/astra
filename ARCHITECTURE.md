@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Arsitektur & Prinsip Desain Astra
 
-Astra adalah aplikasi desktop lingkungan pengembangan web lokal (Apache, PHP, MariaDB, Nginx, PostgreSQL, Node.js, Python, Composer) untuk Windows, dengan pendekatan arsitektur portabel dan modular mirip Laragon.
+Astra adalah aplikasi desktop lingkungan pengembangan web lokal (Apache, PHP, MariaDB, Nginx, PostgreSQL, Node.js, Python, Composer, Sendmail, Redis, heidisql, memcached, Ngork, Redis, Sendmail, Telnet Yarn) untuk Windows, dengan pendekatan arsitektur portabel dan modular mirip Laragon.
 
 ---
 
@@ -12,7 +12,7 @@ Astra adalah aplikasi desktop lingkungan pengembangan web lokal (Apache, PHP, Ma
    - Data persisten disimpan di `data/` (misal `data/mysql`).
    - File log disimpan terpusat di `logs/`.
    - Dokumen web user disimpan di `www/`.
-   - File sementara PHP (session, upload) disimpan di `tmp/sessions/` dan `tmp/uploads/`. Dibersihkan otomatis saat startup dan via tombol UI.
+   - File sementara PHP (session, upload) disimpan di `tmp/` (flat, ala Laragon — `sess_*` dan file upload langsung di root `tmp/`, subfolder seperti `tmp/xdebug/` tidak disentuh). Dibersihkan otomatis saat startup dan via tombol UI.
    - Binary tambahan user disimpan di `usr/bin/` (dipakai PATH di Terminal, Fase 10).
    - Pada build produksi, root aplikasi adalah folder di samping `Astra.exe` (bukan di dalam `app.asar`).
 
@@ -53,9 +53,8 @@ astra/
 │   ├── php/                   # php.ini
 │   └── mariadb/               # my.ini
 ├── logs/                      # Log file dari service dan runtime
-├── tmp/                       # File sementara PHP (aman dihapus)
-│   ├── sessions/              # session.save_path PHP (sess_*)
-│   └── uploads/               # upload_tmp_dir PHP
+├── tmp/                       # File sementara PHP — flat, ala Laragon
+│   └── xdebug/                # (contoh subfolder — tidak disentuh oleh TmpCleaner)
 ├── usr/                       # Kustomisasi pengguna (ala Laragon)
 │   ├── tpl/                   # Override template konfigurasi (.tpl)
 │   └── bin/                   # Binary tambahan user (masuk PATH di Terminal)
@@ -76,11 +75,13 @@ astra/
 │   │       ├── BaseService.ts       # Abstract service berbasis EventEmitter
 │   │       ├── ApacheService.ts     # Manajemen lifecycle Apache
 │   │       └── MariaDbService.ts    # Manajemen lifecycle MariaDB
+│   ├── helpers/               # Skrip eksternal — dikemas via extraResources, TIDAK di app.asar
+│   │   └── update-hosts.ps1   # PowerShell helper untuk modifikasi file hosts (UAC)
 │   ├── ipc/
 │   │   ├── services.ipc.ts    # IPC handlers kontrol service & shell
 │   │   ├── runtimes.ipc.ts    # IPC handlers manajemen multi-versi runtime
 │   │   └── tmp.ipc.ts         # IPC handlers tmp cleanup & template copy
-│   ├── templates/             # Template konfigurasi bawaan (.tpl)
+│   ├── templates/             # Template konfigurasi bawaan (.tpl) — dikemas via extraResources
 │   ├── main.ts                # Main process entry point
 │   └── preload.ts             # Preload bridge
 └── src/                       # Frontend React + Tailwind v4
@@ -101,6 +102,21 @@ astra/
 Pada fallback, peringatan dicetak ke console dan akan ditampilkan di log UI. Aplikasi tidak crash.
 
 Aksi "Salin template bawaan ke usr/tpl/" tersedia di UI; file yang sudah ada tidak ditimpa.
+
+---
+
+## 2c. Packaging dan path runtime
+
+Saat `app.isPackaged` (produksi), `app.asar` bersifat read-only. File yang dibaca pada runtime **tidak boleh** berada di dalamnya. Dua kategori file ini dikemas via `extraResources` di `electron-builder`:
+
+| Folder | Dev | Packaged (`app.isPackaged`) |
+|---|---|---|
+| `electron/templates/` | `<root>/electron/templates/` | `process.resourcesPath/electron/templates/` |
+| `electron/helpers/` | `<root>/electron/helpers/` | `process.resourcesPath/electron/helpers/` |
+
+`Paths.templates` dan `Paths.helpers` di `Paths.ts` memilih path yang benar secara otomatis berdasarkan `app.isPackaged`.
+
+File dan folder lain (`bin/`, `data/`, `etc/`, `tmp/`, `www/`) tidak masuk ke dalam distribusi — dibuat di samping `Astra.exe` saat runtime via `Paths.ensureDirs()`.
 
 ---
 

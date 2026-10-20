@@ -8,6 +8,7 @@ export abstract class BaseService extends EventEmitter {
   public abstract readonly name: string
   public abstract port: number
   public status: ServiceStatus = 'stopped'
+  public lastError: string | null = null
 
   private readonly maxLogs: number = 1000
   private logs: string[] = []
@@ -24,6 +25,10 @@ export abstract class BaseService extends EventEmitter {
     return this.status
   }
 
+  public getLastError(): string | null {
+    return this.lastError
+  }
+
   public async restart(): Promise<void> {
     await this.stop()
     await this.start()
@@ -33,10 +38,20 @@ export abstract class BaseService extends EventEmitter {
     return [...this.logs]
   }
 
-  protected setStatus(status: ServiceStatus): void {
-    if (this.status !== status) {
+  protected setStatus(status: ServiceStatus, error?: string | null): void {
+    const errorChanged = error !== undefined && this.lastError !== error
+    if (error !== undefined) {
+      this.lastError = error
+    } else if (status === 'running' || status === 'stopped') {
+      this.lastError = null
+    }
+
+    if (this.status !== status || errorChanged) {
       this.status = status
-      this.emit('status', status)
+      this.emit('status', {
+        status: this.status,
+        lastError: this.lastError
+      })
     }
   }
 
@@ -80,14 +95,15 @@ export abstract class BaseService extends EventEmitter {
 
     child.on('error', (err) => {
       this.appendLog(`[ERROR] Process error: ${err.message}`)
-      this.setStatus('error')
+      this.setStatus('error', `Process error: ${err.message}`)
     })
 
     child.on('exit', (code, signal) => {
       this.appendLog(`Process exited with code ${code ?? 'null'} signal ${signal ?? 'null'}`)
       this.process = null
       if (this.status !== 'stopping' && this.status !== 'stopped') {
-        this.setStatus(code === 0 ? 'stopped' : 'error')
+        const exitMsg = code !== 0 ? `Process exited unexpectedly with code ${code}` : null
+        this.setStatus(code === 0 ? 'stopped' : 'error', exitMsg)
       } else {
         this.setStatus('stopped')
       }

@@ -4,6 +4,7 @@ export interface ServiceInfo {
   name: string
   port: number
   status: ServiceStatus
+  lastError?: string | null
 }
 
 export interface ServiceLogEvent {
@@ -14,4 +15,5 @@ export interface ServiceLogEvent {
 export interface ServiceStatusEvent {
   service: string
   status: ServiceStatus
+  lastError?: string | null
 }

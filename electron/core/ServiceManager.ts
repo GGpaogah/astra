@@ -21,11 +21,12 @@ export class ServiceManager {
 
     this.services.set(service.name, service)
 
-    service.on('status', (status) => {
+    service.on('status', () => {
       if (this.webContents && !this.webContents.isDestroyed()) {
         this.webContents.send('services:status', {
           service: service.name,
-          status
+          status: service.getStatus(),
+          lastError: service.getLastError()
         })
       }
     })
@@ -45,7 +46,8 @@ export class ServiceManager {
       result.push({
         name: service.name,
         port: service.port,
-        status: service.getStatus()
+        status: service.getStatus(),
+        lastError: service.getLastError()
       })
     }
     return result

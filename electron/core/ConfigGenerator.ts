@@ -116,11 +116,8 @@ export class ConfigGenerator {
     }
 
     // Pastikan folder tmp ada sebelum dikonfigurasi
-    if (!fs.existsSync(Paths.tmpSessions)) {
-      fs.mkdirSync(Paths.tmpSessions, { recursive: true })
-    }
-    if (!fs.existsSync(Paths.tmpUploads)) {
-      fs.mkdirSync(Paths.tmpUploads, { recursive: true })
+    if (!fs.existsSync(Paths.tmp)) {
+      fs.mkdirSync(Paths.tmp, { recursive: true })
     }
 
     const logErrorFile = path.join(logsPhpDir, 'error.log')
@@ -129,8 +126,8 @@ export class ConfigGenerator {
       extensiondir: this.toIniPath(extDir),
       extensions: extensionLines.join('\n'),
       errorlog: this.toIniPath(logErrorFile),
-      session_save_path: this.toIniPath(Paths.tmpSessions),
-      upload_tmp_dir: this.toIniPath(Paths.tmpUploads),
+      session_save_path: this.toIniPath(Paths.tmp),
+      upload_tmp_dir: this.toIniPath(Paths.tmp),
       sys_temp_dir: this.toIniPath(Paths.tmp)
     }
 

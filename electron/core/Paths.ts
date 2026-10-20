@@ -28,11 +28,6 @@ function getAppRoot(): string {
 
 const root = getAppRoot()
 
-// tmp sub-dirs
-const tmp = path.join(root, 'tmp')
-const tmpSessions = path.join(tmp, 'sessions')
-const tmpUploads = path.join(tmp, 'uploads')
-
 // usr sub-dirs
 const usr = path.join(root, 'usr')
 const usrTpl = path.join(usr, 'tpl')
@@ -47,10 +42,8 @@ export const Paths = {
   www: path.join(root, 'www'),
   templates: path.join(root, 'electron', 'templates'),
 
-  // tmp/ — file sementara PHP (session, upload); aman dihapus
-  tmp,
-  tmpSessions,
-  tmpUploads,
+  // tmp/ — file sementara PHP (sess_*, upload); flat seperti Laragon
+  tmp: path.join(root, 'tmp'),
 
   // usr/ — override pengguna (tpl) dan binary tambahan (bin)
   usr,
@@ -64,10 +57,7 @@ export const Paths = {
       Paths.etc,
       Paths.logs,
       Paths.www,
-      // tmp sub-dirs
       Paths.tmp,
-      Paths.tmpSessions,
-      Paths.tmpUploads,
       // usr sub-dirs
       Paths.usr,
       Paths.usrTpl,

@@ -67,8 +67,5 @@ session.sid_length = 26
 session.trans_sid_tags = "a=href,area=href,frame=src,form="
 session.sid_bits_per_character = 5
 
-[upload]
 upload_tmp_dir = "{{upload_tmp_dir}}"
-
-[sys]
 sys_temp_dir = "{{sys_temp_dir}}"

@@ -12,7 +12,7 @@ Kerjakan satu fase per sesi: Hermes membuat rencana → kamu setujui ("lanjut") 
   - [x] Fase 5B — Folder tmp/ & usr/ (override template, PATH pengguna)
 - [x] Fase 6
   - [x] Fase 6A — Resolver + katalog (logika murni, tanpa UI)
-  - [x] Fase 6B — DownloadManager + ekstraksi + UI Install
+  - [ ] Fase 6B (stabilisasi, menunggu uji install di UI)
 - [ ] Fase 7 — Virtual Host `.test` + file hosts
 - [ ] Fase 8 — Nginx + pemilih web server + PHP-CGI
   - [ ] Fase 8B — PostgreSQL + Database Tools (HeidiSQL, Adminer)

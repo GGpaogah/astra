@@ -17,8 +17,14 @@ Dokumen: `README.md`, `ARCHITECTURE.md`, `ROADMAP_PROMPTS.md` (peta fase; jangan
 - Password/token tidak boleh lewat argumen proses (pakai env atau file kredensial di `data/`, tidak di Git).
 - Error ditangani dengan pesan jelas ke UI, tanpa crash diam-diam. Log: ring buffer 1000 baris (main), 500 baris (UI).
 - Tanpa dependency baru kecuali disebut di tugas; tanyakan dulu.
-- Berkas yang dieksekusi proses eksternal (skrip .ps1, .exe, .cmd) TIDAK boleh berada di dalam `app.asar`. Sertakan lewat `extraResources` dan ambil path-nya dari `Paths` (`process.resourcesPath` saat `app.isPackaged`). Gunakan `Paths.helpers` untuk skrip di `electron/helpers/` dan `Paths.templates` untuk template di `electron/templates/`.
+- Berkas yang dieksekusi proses eksternal (skrip .ps1, .exe, .cmd) TIDAK boleh berada di dalam `app.asar`. Sertakan lewat `extraResources` dan ambil path-nya dari `Paths` (`process.resourcesPath` saat `app.isPackaged`).
 - Setiap berkas baru yang dibaca saat runtime (template, skrip, aset) harus dipastikan ikut terkemas: periksa `build.files` dan `build.extraResources` di package.json.
+- **Format API/data eksternal harus diverifikasi dengan request nyata dan disimpan sebagai fixture sebelum parser ditulis; parser memakai schema guard dan memberi pesan error deskriptif.**
+
+## Aturan folder & file sementara
+- File sementara PHP berada langsung di `tmp/` (layout flat ala Laragon). `TmpCleaner` HANYA boleh menghapus file berpola `sess_*` dan berkas upload sementara PHP (`php*.tmp`) yang melewati batas umur. Dilarang menyentuh `tmp/hosts.tmp`, `tmp/php_errors.log`, dan semua subfolder (mis. `tmp/xdebug/`). Pola harus ketat dan diuji (daftar file yang boleh/tidak boleh terhapus).
+- Template dibaca lewat `TemplateResolver` (`usr/tpl` menimpa `electron/templates`); jangan membaca template langsung dari path.
+- `etc/`, `tmp/`, `www/` (isi), `usr/` (isi), `bin/`, `data/`, `logs/` tidak masuk Git.
 
 ## Aturan teknis
 - Package manager: npm saja. Jangan buat `pnpm-lock.yaml`. Jangan commit `package-lock.json` dari Linux.
@@ -30,8 +36,12 @@ Dokumen: `README.md`, `ARCHITECTURE.md`, `ROADMAP_PROMPTS.md` (peta fase; jangan
 
 ## Lingkungan eksekusi
 - Cek platform dulu (`node -p process.platform`).
-- Jika `win32` (Kiro berjalan di Windows): boleh menjalankan `npm run typecheck`, `npm run lint`, dan `npm run build`. JANGAN menjalankan Electron GUI, Apache, MariaDB, atau service lain tanpa izin eksplisit; pengujian fungsional dilakukan user.
+- Jika `win32` (Kiro atau Hermes berjalan di Windows): boleh menjalankan `npm run typecheck`, `npm run lint`, dan `npm run build`. JANGAN menjalankan Electron GUI, Apache, MariaDB, atau service lain tanpa izin eksplisit; pengujian fungsional dilakukan user.
 - Jika Linux (VM via SSH): hanya `typecheck` dan `lint`; binary Windows tidak bisa dijalankan. Bungkus operasi khusus Windows agar type-check lolos.
+
+## Beberapa agen pada satu repo
+- Satu agen aktif pada satu waktu. Commit (boleh `wip:`) sebelum berganti agen; periksa `git status` bersih saat mulai.
+- Jangan menjalankan `npm install` bersamaan dari dua agen.
 
 ## Gaya kerja (hemat kuota)
 - Baca hanya file yang relevan; jangan membaca ulang seluruh repo.

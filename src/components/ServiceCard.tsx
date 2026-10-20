@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react'
 import type { ServiceInfo } from '../types.d.ts'
 
 interface ServiceCardProps {
   service: ServiceInfo
   isSelected: boolean
+  extraControls?: ReactNode
   onSelect: () => void
   onStart: (name: string) => void
   onStop: (name: string) => void
@@ -12,6 +14,7 @@ interface ServiceCardProps {
 export function ServiceCard({
   service,
   isSelected,
+  extraControls,
   onSelect,
   onStart,
   onStop,
@@ -48,6 +51,12 @@ export function ServiceCard({
           {service.status}
         </span>
       </div>
+
+      {extraControls && (
+        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+          {extraControls}
+        </div>
+      )}
 
       {isError && service.lastError && (
         <div className="mb-3 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 leading-relaxed break-words">

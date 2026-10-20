@@ -53,14 +53,45 @@ export class ServiceManager {
     return result
   }
 
+  /**
+   * Jalankan semua service secara berurutan: mariadb lalu apache
+   */
   public async startAll(): Promise<void> {
-    const promises = Array.from(this.services.values()).map((service) => service.start())
-    await Promise.all(promises)
+    const order = ['mariadb', 'apache']
+    for (const name of order) {
+      const s = this.services.get(name)
+      if (s && s.getStatus() !== 'running') {
+        await s.start()
+      }
+    }
+
+    // Untuk service lainnya jika ada
+    for (const [name, service] of this.services.entries()) {
+      if (!order.includes(name) && service.getStatus() !== 'running') {
+        await service.start()
+      }
+    }
   }
 
+  /**
+   * Hentikan semua service secara berurutan terbalik: apache dulu, lalu mariadb
+   */
   public async stopAll(): Promise<void> {
-    const promises = Array.from(this.services.values()).map((service) => service.stop())
-    await Promise.all(promises)
+    const reverseOrder = ['apache', 'mariadb']
+    for (const name of reverseOrder) {
+      const s = this.services.get(name)
+      if (s && s.getStatus() !== 'stopped') {
+        await s.stop()
+      }
+    }
+
+    // Untuk service lainnya jika ada
+    for (const [name, service] of this.services.entries()) {
+      if (!reverseOrder.includes(name) && service.getStatus() !== 'stopped') {
+        await service.stop()
+      }
+    }
+
     this.flushLogs()
   }
 

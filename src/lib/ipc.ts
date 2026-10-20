@@ -1,4 +1,10 @@
-import type { ServiceInfo, ServiceLogEvent, ServiceStatus, ServiceStatusEvent } from '../types.d.ts'
+import type {
+  ServiceInfo,
+  ServiceLogEvent,
+  ServiceStatus,
+  ServiceStatusEvent,
+  PhpVersionInfo
+} from '../types.d.ts'
 
 export async function ping(): Promise<string> {
   return window.api.ping()
@@ -20,8 +26,36 @@ export async function restartService(name: string): Promise<ServiceStatus> {
   return window.api.restartService(name)
 }
 
+export async function startAllServices(): Promise<ServiceInfo[]> {
+  return window.api.startAllServices()
+}
+
+export async function stopAllServices(): Promise<ServiceInfo[]> {
+  return window.api.stopAllServices()
+}
+
 export async function getLogs(name: string): Promise<string[]> {
   return window.api.getLogs(name)
+}
+
+export async function listPhpVersions(): Promise<PhpVersionInfo[]> {
+  return window.api.listPhpVersions()
+}
+
+export async function getActivePhpVersion(): Promise<PhpVersionInfo | null> {
+  return window.api.getActivePhpVersion()
+}
+
+export async function setActivePhpVersion(version: string): Promise<PhpVersionInfo | null> {
+  return window.api.setActivePhpVersion(version)
+}
+
+export async function openExternal(url: string): Promise<boolean> {
+  return window.api.openExternal(url)
+}
+
+export async function openPath(relativePath: string): Promise<boolean> {
+  return window.api.openPath(relativePath)
 }
 
 export function onServiceStatus(callback: (data: ServiceStatusEvent) => void): () => void {

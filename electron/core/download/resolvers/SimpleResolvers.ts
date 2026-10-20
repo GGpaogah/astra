@@ -1,13 +1,125 @@
 import type { ResolveResult, VersionChannel, CatalogEntry } from '../CatalogTypes.ts'
 import { findCatalogEntry } from '../catalog.ts'
 
+const PYTHON_LIST_URL = 'https://www.python.org/ftp/python/'
+const REQUEST_TIMEOUT = 15000
+
+const ALLOWED_HOSTS = new Set(['python.org', 'www.python.org'])
+
+// ── Types for pure parse functions ────────────────────────────────────────────
+
+/**
+ * Parse Python FTP directory listing HTML — pure, no I/O.
+ * Returns sorted version strings (newest first).
+ */
+export function parsePythonVersionList(html: string): string[] {
+  if (!html || typeof html !== 'string') {
+    throw new Error('format listing berubah: HTML kosong atau bukan string')
+  }
+  const matches = [...html.matchAll(/href="(\d+\.\d+\.\d+)\/"/g)]
+  if (matches.length === 0) {
+    throw new Error('tidak ada direktori versi Python ditemukan di listing python.org')
+  }
+  const versions = matches.map(m => m[1])
+  // Sort descending (newest first)
+  versions.sort((a, b) => compareVersionStrings(b, a))
+  return versions
+}
+
+/**
+ * Build embeddable URL and verify filename pattern — pure, no I/O.
+ * Python embeddable file is: python-{version}-embeddable-amd64.zip
+ */
+export function buildPythonEmbeddableUrl(version: string): { url: string; archiveRoot: string; filename: string } {
+  const filename = `python-${version}-embeddable-amd64.zip`
+  const url = `https://www.python.org/ftp/python/${version}/${filename}`
+  const archiveRoot = `python-${version}-embeddable-amd64`
+  return { url, archiveRoot, filename }
+}
+
+function isAllowedUrl(url: string): boolean {
+  try {
+    const p = new URL(url)
+    return p.protocol === 'https:' && ALLOWED_HOSTS.has(p.hostname)
+  } catch {
+    return false
+  }
+}
+
+function compareVersionStrings(a: string, b: string): number {
+  const pa = a.split('.').map(Number)
+  const pb = b.split('.').map(Number)
+  const len = Math.max(pa.length, pb.length)
+  for (let i = 0; i < len; i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (diff !== 0) return diff
+  }
+  return 0
+}
+
+// ─── Python ───────────────────────────────────────────────────────────────────
+
+export async function resolvePythonStable(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
+  const warnings: string[] = [
+    'Python embeddable build: pip tidak tersedia secara default. Jalankan get-pip.py setelah instalasi (Fase 10).',
+  ]
+
+  try {
+    const listResponse = await fetch(PYTHON_LIST_URL, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT)
+    })
+    if (!listResponse.ok) throw new Error(`HTTP ${listResponse.status}`)
+
+    const html = await listResponse.text()
+    const versions = parsePythonVersionList(html)
+    const bestVersion = versions[0]
+
+    const { url, archiveRoot, filename } = buildPythonEmbeddableUrl(bestVersion)
+
+    if (!isAllowedUrl(url)) {
+      throw new Error(`URL Python (${url}) berada di luar domain yang diizinkan`)
+    }
+
+    // Verifikasi file ada via HEAD (non-fatal)
+    let fileVerified = false
+    try {
+      const headRes = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(8000) })
+      fileVerified = headRes.ok
+    } catch { /* non-fatal */ }
+
+    if (!fileVerified) {
+      warnings.push(`File ${filename} tidak dapat diverifikasi keberadaannya di python.org; lanjutkan dengan hati-hati.`)
+    }
+
+    return {
+      type: 'python',
+      channel,
+      version: bestVersion,
+      url,
+      archiveRoot,
+      label: `Python ${bestVersion} Embeddable (x64)`,
+      fromCache: false,
+      needsManualVerification: false,
+      warnings
+    }
+  } catch (err) {
+    warnings.push(`Resolver Python gagal: ${(err as Error).message}. Menggunakan katalog fallback.`)
+  }
+
+  const entry = findCatalogEntry('python', channel) ?? findCatalogEntry('python', 'stable')
+  if (!entry) throw new Error('Resolver Python: tidak ada data di sumber maupun katalog.')
+  return catalogResult(entry, channel, warnings)
+}
+
 // ─── Nginx ────────────────────────────────────────────────────────────────────
+
+const NGINX_LIST_URL = 'https://nginx.org/download/'
 
 export async function resolveNginxStable(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
   const warnings: string[] = []
 
   try {
-    const response = await fetch('https://nginx.org/download/', {
+    const response = await fetch(NGINX_LIST_URL, {
       signal: AbortSignal.timeout(10000)
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -48,11 +160,13 @@ export async function resolveNginxStable(channel: VersionChannel = 'stable'): Pr
 
 // ─── Composer ─────────────────────────────────────────────────────────────────
 
+const COMPOSER_VERSIONS_URL = 'https://getcomposer.org/versions'
+
 export async function resolveComposerStable(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
   const warnings: string[] = []
 
   try {
-    const response = await fetch('https://getcomposer.org/versions', {
+    const response = await fetch(COMPOSER_VERSIONS_URL, {
       signal: AbortSignal.timeout(10000)
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -83,63 +197,6 @@ export async function resolveComposerStable(channel: VersionChannel = 'stable'):
   return catalogResult(entry, channel, warnings)
 }
 
-// ─── Python ───────────────────────────────────────────────────────────────────
-
-export async function resolvePythonStable(channel: VersionChannel = 'stable'): Promise<ResolveResult> {
-  const warnings: string[] = [
-    'Python embeddable build: pip tidak tersedia secara default. Jalankan get-pip.py setelah instalasi (Fase 10).'
-  ]
-
-  try {
-    const listResponse = await fetch('https://www.python.org/ftp/python/', {
-      signal: AbortSignal.timeout(10000)
-    })
-    if (!listResponse.ok) throw new Error(`HTTP ${listResponse.status}`)
-
-    const html = await listResponse.text()
-    const versionMatches = [...html.matchAll(/href="(\d+\.\d+\.\d+)\/"/g)]
-    if (versionMatches.length === 0) throw new Error('Tidak ada direktori versi Python ditemukan')
-
-    let bestVersion = ''
-    for (const m of versionMatches) {
-      const ver = m[1]
-      if (!bestVersion || compareVersionStrings(ver, bestVersion) > 0) bestVersion = ver
-    }
-
-    const filename = `python-${bestVersion}-embed-amd64.zip`
-    const url = `https://www.python.org/ftp/python/${bestVersion}/${filename}`
-
-    // Verifikasi file ada via HEAD
-    let fileVerified = false
-    try {
-      const headRes = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(8000) })
-      fileVerified = headRes.ok
-    } catch { /* non-fatal */ }
-
-    if (!fileVerified) {
-      warnings.push(`File ${filename} tidak dapat diverifikasi keberadaannya di python.org; lanjutkan dengan hati-hati.`)
-    }
-
-    return {
-      type: 'python',
-      channel,
-      version: bestVersion,
-      url,
-      archiveRoot: `python-${bestVersion}-embed-amd64`,
-      label: `Python ${bestVersion} Embeddable (x64)`,
-      fromCache: false,
-      needsManualVerification: false,  // URL dari domain resmi python.org — tidak perlu manual
-      warnings
-    }
-  } catch (err) {
-    warnings.push(`Resolver Python gagal: ${(err as Error).message}. Menggunakan katalog fallback.`)
-  }
-
-  const entry = findCatalogEntry('python', channel) ?? findCatalogEntry('python', 'stable')
-  if (!entry) throw new Error('Resolver Python: tidak ada data di sumber maupun katalog.')
-  return catalogResult(entry, channel, warnings)
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function catalogResult(
@@ -159,15 +216,4 @@ function catalogResult(
     needsManualVerification: entry.url.startsWith('TODO_VERIFY:'),
     warnings: extraWarnings
   }
-}
-
-function compareVersionStrings(a: string, b: string): number {
-  const pa = a.split('.').map(Number)
-  const pb = b.split('.').map(Number)
-  const len = Math.max(pa.length, pb.length)
-  for (let i = 0; i < len; i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
-    if (diff !== 0) return diff
-  }
-  return 0
 }

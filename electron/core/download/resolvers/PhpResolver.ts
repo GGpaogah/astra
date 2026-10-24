@@ -80,11 +80,10 @@ export function parsePhpReleases(
   const version = String(branch.version)
   const url = `${PHP_DOWNLOAD_BASE}${variant.path}`
   const sha256 = variant.sha256 ?? ''
-  const archiveRoot = variant.path.replace(/\.zip$/i, '')
   const isTS = !isNts
   const label = `PHP ${version} (${isTS ? 'Thread Safe' : 'Non Thread Safe'}, VS17, x64)`
 
-  return { version, url, archiveRoot, sha256, label, isTS }
+  return { version, url, archiveRoot: '', sha256, label, isTS }
 }
 
 // ── Network fetch with allowlist redirect check ───────────────────────────────

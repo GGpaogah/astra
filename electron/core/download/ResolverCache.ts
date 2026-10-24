@@ -99,8 +99,17 @@ export function writeCache(result: ResolveResult): void {
 }
 
 /**
- * Hapus semua entri cache untuk type tertentu (dipakai saat user memicu refresh manual).
+ * Hapus entri cache yang masih menyimpan hasil dengan needsManualVerification = true.
+ * Dipanggil saat startup untuk memastikan fix resolver langsung terasa.
  */
+export function purgeStaleVerificationCache(): void {
+  const cache = readRaw()
+  const before = cache.entries.length
+  cache.entries = cache.entries.filter((e) => !e.result.needsManualVerification)
+  if (cache.entries.length !== before) {
+    try { writeRaw(cache) } catch { /* non-fatal */ }
+  }
+}
 export function invalidateCache(type?: string): void {
   const cache = readRaw()
   if (type) {

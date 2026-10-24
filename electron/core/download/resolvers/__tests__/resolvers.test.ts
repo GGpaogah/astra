@@ -181,15 +181,15 @@ describe('parsePythonVersionList', () => {
 describe('buildPythonEmbeddableUrl', () => {
   it('builds correct URL, archiveRoot, and filename for 3.13.2', () => {
     const result = buildPythonEmbeddableUrl('3.13.2')
-    expect(result.url).toBe('https://www.python.org/ftp/python/3.13.2/python-3.13.2-embeddable-amd64.zip')
-    expect(result.archiveRoot).toBe('python-3.13.2-embeddable-amd64')
-    expect(result.filename).toBe('python-3.13.2-embeddable-amd64.zip')
+    expect(result.url).toBe('https://www.python.org/ftp/python/3.13.2/python-3.13.2-embed-amd64.zip')
+    expect(result.archiveRoot).toBe('python-3.13.2-embed-amd64')
+    expect(result.filename).toBe('python-3.13.2-embed-amd64.zip')
   })
 
   it('builds correct values for 3.12.7', () => {
     const result = buildPythonEmbeddableUrl('3.12.7')
-    expect(result.url).toBe('https://www.python.org/ftp/python/3.12.7/python-3.12.7-embeddable-amd64.zip')
-    expect(result.archiveRoot).toBe('python-3.12.7-embeddable-amd64')
-    expect(result.filename).toBe('python-3.12.7-embeddable-amd64.zip')
+    expect(result.url).toBe('https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip')
+    expect(result.archiveRoot).toBe('python-3.12.7-embed-amd64')
+    expect(result.filename).toBe('python-3.12.7-embed-amd64.zip')
   })
 })

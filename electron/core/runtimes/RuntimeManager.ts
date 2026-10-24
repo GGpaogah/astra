@@ -65,6 +65,9 @@ export class RuntimeManager {
       const folderId = entry.name
       if (internalSubdirs.has(folderId.toLowerCase())) continue
 
+      // Lewati folder tmp sementara dari DownloadManager (pola: <nama>.__tmp_<timestamp>)
+      if (folderId.includes('.__tmp_')) continue
+
       const runtimeDir = path.join(baseDir, folderId)
       if (!definition.detect(runtimeDir)) {
         const isVersionCandidate =

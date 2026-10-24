@@ -1,101 +1,45 @@
 # Astra
 
-**Astra** is a free, portable local web development environment for Windows, built as an open alternative to tools like Laragon.
+Lingkungan pengembangan web lokal **portabel untuk Windows** (alternatif terbuka mirip Laragon). Astra menjalankan Apache, PHP, dan MariaDB sebagai proses portabel dari satu aplikasi desktop, tanpa memasang service sistem dan tanpa hak Administrator untuk pemakaian normal.
 
-It runs Apache, PHP, and MariaDB as managed services from a single desktop application, without requiring installation of system-level services or administrative privileges for normal operation.
+> Status: dalam pengembangan aktif. Belum setara Laragon. Daftar fitur dan status ada di [PRD.md](PRD.md); pekerjaan yang sedang berjalan ada di [TASK.md](TASK.md).
 
----
+## Yang sudah bisa
 
-## What Astra does
+- Start / Stop / Restart Apache dan MariaDB; Start All / Stop All berurutan
+- Banyak versi runtime berdampingan (PHP, Apache, MariaDB; Nginx, PostgreSQL, Node.js, Python, Composer terdeteksi) dengan struktur folder ala Laragon
+- Ganti versi aktif dari tab Versions; konfigurasi di-generate dari template (bisa dioverride di `usr/tpl/`)
+- Log real-time, deteksi port bentrok, pembersih file sementara PHP
+- Tambah versi: letakkan folder arsip di `bin/<jenis>/` lalu **Pindai ulang**; hapus versi yang tidak dipakai dari tab Versions. Astra tidak mengunduh runtime secara otomatis (keputusan proyek)
 
-- Starts and stops Apache, PHP (via mod\_php), and MariaDB as portable processes
-- Manages multiple installed PHP and MariaDB versions simultaneously
-- Generates configuration files from templates at runtime
-- Streams service logs to the UI in real time
-- Detects port conflicts before attempting to start a service
-- Cleans up PHP session and upload temporary files automatically
-- Allows user-level template overrides in `usr/tpl/`
+## Yang belum
 
-## What Astra does not yet do
+Virtual host `.test`, Nginx/PHP-CGI, PostgreSQL, Mailpit/Redis/Memcached, Quick Create (Laravel/WordPress), terminal, SSL, tray/autostart. Rinciannya di [TASK.md](TASK.md).
 
-The following features are planned but not currently implemented:
+## Mulai cepat
 
-- Virtual host management (`.test` domains)
-- Automatic runtime download and installation
-- Nginx support
-- PostgreSQL support
-- SSL (mkcert)
-- Project Quick Create (Laravel, WordPress)
-- Tray icon and Windows autostart
-- Terminal launcher
-- Settings UI
+Prasyarat: Windows 10/11, Node.js 22.12+ (diuji 24.x), npm 11+, Git.
 
-See [ROADMAP_PROMPTS.md](ROADMAP_PROMPTS.md) for planned phases and their status.
-
----
-
-## Relationship to Laragon
-
-Astra follows Laragon's portable folder layout (`bin/`, `etc/`, `tmp/`, `usr/`, `www/`) and multi-version runtime model. It is not a fork and does not share any code with Laragon. Astra is under active development and is not yet equivalent to Laragon in features or stability.
-
----
-
-## Technology stack
-
-| Layer | Choice | Version |
-|---|---|---|
-| Desktop shell | Electron | ^44 |
-| Language | TypeScript | ~7.0 |
-| UI framework | React | ^19.3 |
-| Build tool | Vite | ^8.3 |
-| CSS | Tailwind CSS | ^4.3 |
-| Module format | ES Modules | — |
-| Package manager | npm | ≥11 |
-| Packaging | electron-builder | ^26.5 |
-| Node.js (required) | Node.js | ≥22.12 |
-
----
-
-## Prerequisites
-
-- Windows 10 or 11
-- Node.js 22.12 or later (`node --version`)
-- npm 11 or later (`npm --version`)
-- Git
-
-Binary runtimes (Apache, PHP, MariaDB) are **not** included in the repository. Place them manually in `bin/` following the structure described in [ARCHITECTURE.md](ARCHITECTURE.md).
-
----
-
-## Getting started
-
-```bash
-# Clone and install
-git clone <repo-url>
+```powershell
+git clone https://github.com/GGpaogah/astra.git
 cd astra
 npm install
-
-# Validate (no Windows runtime required)
-npm run typecheck
-npm run lint
-
-# Development (Windows only — requires Electron and service binaries)
-npm run dev
-
-# Production build (Windows only)
-npm run build
+npm run typecheck ; npm run lint     # validasi statis
+npm run dev                          # pengembangan (Windows)
+npm run build                        # build produksi (Windows)
 ```
 
-For detailed setup instructions, binary placement, and troubleshooting, see [SETUP.md](SETUP.md).
+Binary Apache/PHP/MariaDB **tidak** ada di repositori: letakkan di `bin/` (lihat [TECHSTACK.md](TECHSTACK.md), bagian Setup).
 
----
+## Dokumen (hanya 8 berkas)
 
-## Project documentation
-
-| Document | Purpose |
-|---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, module descriptions, security boundaries |
-| [ROADMAP_PROMPTS.md](ROADMAP_PROMPTS.md) | Development phases and implementation prompts |
-| [SETUP.md](SETUP.md) | Development environment setup and troubleshooting |
-| [SETUP_HERMES.md](SETUP_HERMES.md) | Optional: remote development via Hermes Agent + VM |
-| [CLAUDE.md](CLAUDE.md) | Instructions for AI coding agents |
+| Berkas                         | Isi                                                                   |
+| ------------------------------ | --------------------------------------------------------------------- |
+| [README.md](README.md)         | Gambaran singkat dan mulai cepat                                      |
+| [CLAUDE.md](CLAUDE.md)         | Aturan kerja agen AI (titik masuk untuk Claude, Kiro, Hermes, dll.)   |
+| [PRD.md](PRD.md)               | Produk: visi, ruang lingkup, status fitur, keputusan                  |
+| [SECURITY.md](SECURITY.md)     | Aturan dan batas keamanan                                             |
+| [SKILL.md](SKILL.md)           | Playbook langkah-demi-langkah untuk pekerjaan berulang                |
+| [STYLEGUIDE.md](STYLEGUIDE.md) | Gaya kode, Git, dokumentasi, dan UI                                   |
+| [TASK.md](TASK.md)             | Daftar tugas, fase, temuan terbuka                                    |
+| [TECHSTACK.md](TECHSTACK.md)   | Stack, arsitektur, struktur folder, packaging, setup, troubleshooting |

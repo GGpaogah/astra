@@ -4,13 +4,12 @@
   "entries": [
     {
       "type": "php",
-      "version": "8.5.11",
+      "version": "8.3.35",
       "channel": "stable",
       "platform": "win32",
       "arch": "x64",
-      "url": "https://downloads.php.net/~windows/releases/archives/php-8.5.11-Win32-vs17-x64.zip",
-      "archiveRoot": "php-8.5.11-Win32-vs17-x64",
-      "label": "PHP 8.5.11 (Thread Safe, VS17, x64)"
+      "url": "https://windows.php.net/downloads/releases/php-8.3.35-Win32-vs16-x64.zip",
+      "label": "PHP 8.3.35 (Thread Safe, VS16, x64)"
     },
     {
       "type": "apache",

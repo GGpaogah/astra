@@ -49,7 +49,7 @@ export function registerDownloadIpc(): void {
    * Hapus satu versi runtime dari bin/.
    * Validasi: tidak boleh menghapus versi aktif atau versi yang dipakai service yang berjalan.
    */
-  ipcMain.handle('download:delete-version', (_event, type: unknown, folderId: unknown) => {
+  ipcMain.handle('download:delete-version', async (_event, type: unknown, folderId: unknown) => {
     if (typeof type !== 'string' || !isRuntimeType(type)) {
       throw new Error(`Tipe runtime "${String(type)}" tidak valid`)
     }
@@ -78,7 +78,7 @@ export function registerDownloadIpc(): void {
       }
     }
 
-    downloadManager.deleteVersion(type, folderId)
+    await downloadManager.deleteVersion(type, folderId)
     return true
   })
 }

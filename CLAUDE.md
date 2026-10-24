@@ -1,80 +1,48 @@
-# CLAUDE.md — AI Coding Agent Instructions
+# CLAUDE.md — Aturan Kerja Agen AI
 
-Project: **Astra** — portable local web development environment for Windows.  
-Stack: Electron + TypeScript + React + Vite + Tailwind CSS. ES Modules (`"type": "module"`).
+Proyek: **Astra** (Electron + TypeScript + React + Vite + Tailwind, ES Modules). Berlaku untuk semua agen (Claude, Kiro, Hermes, Gemini, dll.).
+Tidak ada folder aturan tersembunyi (`.kiro/` dll.): **semua aturan ada di 8 berkas di root**. Awali setiap sesi dengan membaca berkas ini.
 
-> **Authoritative rules are in `.kiro/steering/astra rules.md`.**  
-> This file is a concise entry point for any AI coding agent (Claude, Kiro, Gemini, etc.).
+## Urutan baca
 
----
+1. `CLAUDE.md` (ini) → 2. `TASK.md` (tugas aktif) → 3. berkas yang relevan saja: `SECURITY.md` (wajib bila menyentuh IPC, file, unduhan, proses), `TECHSTACK.md` (arsitektur), `SKILL.md` (playbook), `STYLEGUIDE.md` (gaya), `PRD.md` (keputusan produk).
+   Jangan membaca ulang seluruh repo. Kode adalah sumber kebenaran; dokumen bisa tertinggal.
 
-## Required reading before any code change
+## Aturan inti
 
-1. `.kiro/steering/astra rules.md` — project rules and security constraints
-2. `ARCHITECTURE.md` — system design and module responsibilities
-3. The specific source files relevant to the task
+- Renderer tidak memakai API Node; semua lewat `window.api` (preload) dan IPC yang divalidasi di main process.
+- Semua path lewat `electron/core/Paths.ts`. Semua service extend `BaseService` dan hanya bind ke `127.0.0.1`.
+- Config di `etc/` hasil generate dari template (`usr/tpl` menimpa `electron/templates` lewat `TemplateResolver`); jangan edit langsung.
+- Berkas yang dieksekusi proses lain (`.ps1`, `.exe`) dan berkas yang dibaca saat runtime harus lewat `extraResources`, bukan di dalam `app.asar`.
+- Jangan mengganti versi runtime aktif secara otomatis. Jangan menghapus atau menginisialisasi ulang data database.
+- Aturan keamanan lengkap: `SECURITY.md`.
 
-Do not rely on documentation alone to determine whether a feature is implemented.  
-Read the actual source code. Documentation may lag behind the implementation.
+## Dependensi dan Git
 
----
+- npm saja. Dilarang `pnpm-lock.yaml`, `pnpm-workspace.yaml`, yarn. Tanpa dependensi baru tanpa persetujuan.
+- Jangan commit `package-lock.json` dari Linux; jangan commit `bin/ data/ logs/ etc/ tmp/ release/ dist-electron/` maupun isi `www/` dan `usr/`.
+- Satu tugas = satu commit kecil dengan awalan konvensional (lihat `STYLEGUIDE.md`). Tanpa perintah Git destruktif. Cek `git status` sebelum mulai dan sebelum commit; jika tidak bersih di awal, laporkan dan berhenti.
 
-## Architecture invariants
+## Lingkungan dan validasi
 
-- The renderer process must never call Node.js APIs directly.
-- All renderer↔main communication goes through `window.api` (defined in `electron/preload.ts`).
-- All IPC handlers must validate inputs in the main process.
-- All filesystem paths must go through `electron/core/Paths.ts`.
-- All services must extend `BaseService` and bind only to `127.0.0.1`.
-- Config files in `etc/` are always generated from templates — never edited directly.
-- Files executed by external processes (`.ps1`, `.exe`, `.cmd`) must be in `extraResources`, not `app.asar`. Read their paths via `Paths.helpers` or `Paths.templates`.
+Cek `node -p process.platform` dulu.
 
-## Security constraints
+- **Windows:** boleh `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`. **Dilarang** menjalankan Electron (`npm run dev`), Apache, MariaDB, atau service lain tanpa izin; uji fungsional dilakukan pemilik.
+- **Linux/VM:** hanya typecheck dan lint.
+- Satu agen aktif pada satu waktu; commit (boleh `wip:`) sebelum berganti agen.
+- Jangan klaim "selesai/lulus/teruji" tanpa menjalankan perintahnya dan melihat exit 0. Setelah **setiap edit berkas**, verifikasi hasilnya (baca balik atau `git diff`); edit yang gagal tidak boleh dilaporkan sebagai berhasil.
+- Format API/data eksternal harus diverifikasi dengan request nyata dan disimpan sebagai fixture **sebelum** parser ditulis (lihat `SKILL.md`, Playbook 6).
 
-- Validate IPC inputs: URLs via `new URL()` (exact hostname), paths via `path.resolve` + root check, names via whitelist regex. Reject `..` and absolute paths from the renderer.
-- Passwords and tokens must not appear in process arguments. Use environment variables or credential files in `data/`.
-- Do not expose unrestricted Node.js capabilities to the renderer.
-- Do not silently switch active runtime versions.
+## Gaya kerja (hemat kuota)
 
-## Dependency management
+- Tugas kecil dan jelas: langsung kerjakan. Tanya hanya bila ada keputusan desain yang ambigu.
+- Jangan mencetak JSON/berkas besar; tampilkan struktur dan sampel saja.
+- Satu masalah dianalisis dari akarnya dengan tes yang mereproduksi, bukan ditambal berulang-ulang.
 
-- Use `npm` only. Do not create `pnpm-lock.yaml` or use `yarn`.
-- Do not add new dependencies without explicit approval.
-- Do not commit `package-lock.json` from a Linux environment.
+## Dokumentasi
 
-## Validation
+Hanya 8 berkas `.md` di root. Jangan membuat berkas `.md` baru. Perbarui `TASK.md` (status) di akhir tugas; ubah dokumen lain hanya bila tugas memintanya atau faktanya berubah.
 
-On Windows: `npm run typecheck` and `npm run lint` must pass before committing.  
-On Linux/VM: typecheck and lint only; do not run Electron, Apache, MariaDB, or any Windows binary.
+## Laporan akhir (maks. 30 baris)
 
-Do not claim that tests passed unless the commands were executed and returned exit 0.  
-Do not claim Windows-specific behavior was verified in a Linux environment.
-
-## Reporting
-
-End-of-task reports must cover:
-- Files changed
-- Key decisions and trade-offs
-- Edge cases handled
-- Manual verification steps for Windows
-
-Keep reports to 30 lines or fewer. Do not echo entire file contents.
-
----
-
-## Available commands
-
-```bash
-npm run typecheck   # TypeScript validation (no emit)
-npm run lint        # oxlint
-npm run build       # tsc + vite build + electron-builder (Windows only)
-npm run dev         # development server (Windows only)
-```
-
----
-
-## Further reading
-
-- [SETUP.md](SETUP.md) — contributor setup and troubleshooting
-- [SETUP_HERMES.md](SETUP_HERMES.md) — optional Hermes Agent + VM workflow
-- [ROADMAP_PROMPTS.md](ROADMAP_PROMPTS.md) — development phases and planned work
+Berkas berubah · keputusan dan trade-off · edge case · apa yang benar-benar dijalankan (typecheck/lint/test/build) · apa yang perlu diuji manual di Windows. Tanpa mengulang isi berkas.

@@ -16,24 +16,29 @@ export function parsePythonVersionList(html: string): string[] {
   if (!html || typeof html !== 'string') {
     throw new Error('format listing berubah: HTML kosong atau bukan string')
   }
-  const matches = [...html.matchAll(/href="(\d+\.\d+\.\d+)\/"/g)]
+  const matches = [...html.matchAll(/href="(\d+\.\d+\.\d+)(?:[^"]*)?\/"/g)]
   if (matches.length === 0) {
     throw new Error('tidak ada direktori versi Python ditemukan di listing python.org')
   }
-  const versions = matches.map(m => m[1])
-  // Sort descending (newest first)
-  versions.sort((a, b) => compareVersionStrings(b, a))
+  // Filter out pre-release versions (alpha, beta, rc) — only stable releases get embeddable zips
+  const versions = matches
+    .map(m => m[1])
+    .filter(v => !/[aAbBcC]\d/i.test(v))
+    .sort((a, b) => compareVersionStrings(b, a))
+  if (versions.length === 0) {
+    throw new Error('tidak ada versi Python stabil ditemukan di listing (semua versi prereklease)')
+  }
   return versions
 }
 
 /**
  * Build embeddable URL and verify filename pattern — pure, no I/O.
- * Python embeddable file is: python-{version}-embeddable-amd64.zip
+ * Python embeddable file is: python-{version}-embed-amd64.zip
  */
 export function buildPythonEmbeddableUrl(version: string): { url: string; archiveRoot: string; filename: string } {
-  const filename = `python-${version}-embeddable-amd64.zip`
+  const filename = `python-${version}-embed-amd64.zip`
   const url = `https://www.python.org/ftp/python/${version}/${filename}`
-  const archiveRoot = `python-${version}-embeddable-amd64`
+  const archiveRoot = `python-${version}-embed-amd64`
   return { url, archiveRoot, filename }
 }
 
@@ -72,32 +77,49 @@ export async function resolvePythonStable(channel: VersionChannel = 'stable'): P
 
     const html = await listResponse.text()
     const versions = parsePythonVersionList(html)
-    const bestVersion = versions[0]
 
-    const { url, archiveRoot, filename } = buildPythonEmbeddableUrl(bestVersion)
+    // Verify embeddable zip exists for each version (newest first)
+    let selectedVersion = ''
+    let selectedUrl = ''
+    let selectedArchiveRoot = ''
 
-    if (!isAllowedUrl(url)) {
-      throw new Error(`URL Python (${url}) berada di luar domain yang diizinkan`)
+    for (const version of versions) {
+      const { url, archiveRoot, filename } = buildPythonEmbeddableUrl(version)
+      if (!isAllowedUrl(url)) continue
+
+      // Check version directory listing for exact embeddable file
+      let fileExists = false
+      try {
+        const dirResponse = await fetch(`https://www.python.org/ftp/python/${version}/`, {
+          signal: AbortSignal.timeout(8000)
+        })
+        if (dirResponse.ok) {
+          const dirHtml = await dirResponse.text()
+          fileExists = dirHtml.includes(filename)
+        }
+      } catch { /* ignore */ }
+
+      if (fileExists) {
+        selectedVersion = version
+        selectedUrl = url
+        selectedArchiveRoot = archiveRoot
+        break
+      } else {
+        warnings.push(`Python ${version} tidak memiliki embed-amd64.zip (prerelease), mencoba versi sebelumnya...`)
+      }
     }
 
-    // Verifikasi file ada via HEAD (non-fatal)
-    let fileVerified = false
-    try {
-      const headRes = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(8000) })
-      fileVerified = headRes.ok
-    } catch { /* non-fatal */ }
-
-    if (!fileVerified) {
-      warnings.push(`File ${filename} tidak dapat diverifikasi keberadaannya di python.org; lanjutkan dengan hati-hati.`)
+    if (!selectedVersion) {
+      throw new Error('Tidak ada versi Python stabil dengan embed-amd64.zip ditemukan')
     }
 
     return {
       type: 'python',
       channel,
-      version: bestVersion,
-      url,
-      archiveRoot,
-      label: `Python ${bestVersion} Embeddable (x64)`,
+      version: selectedVersion,
+      url: selectedUrl,
+      archiveRoot: selectedArchiveRoot,
+      label: `Python ${selectedVersion} Embeddable (x64)`,
       fromCache: false,
       needsManualVerification: false,
       warnings
@@ -138,12 +160,26 @@ export async function resolveNginxStable(channel: VersionChannel = 'stable'): Pr
       }
     }
 
+    // Fetch SHA256 if available (non-fatal)
+    let sha256 = ''
+    try {
+      const shaResponse = await fetch(`${NGINX_LIST_URL}${bestFile}.sha256`, {
+        signal: AbortSignal.timeout(5000)
+      })
+      if (shaResponse.ok) {
+        const shaText = await shaResponse.text()
+        const match = shaText.trim().match(/^([a-f0-9]{64})\s+/i)
+        if (match) sha256 = match[1].toLowerCase()
+      }
+    } catch { /* ignore */ }
+
     return {
       type: 'nginx',
       channel,
       version: bestVersion,
       url: `https://nginx.org/download/${bestFile}`,
       archiveRoot: `nginx-${bestVersion}`,
+      sha256: sha256 || undefined,
       label: `Nginx ${bestVersion} (Windows)`,
       fromCache: false,
       needsManualVerification: false,
@@ -178,11 +214,24 @@ export async function resolveComposerStable(channel: VersionChannel = 'stable'):
     const url = `https://getcomposer.org/download/${version}/composer.phar`
     new URL(url) // validasi
 
+    // Fetch SHA256 from .sha256sum file (non-fatal)
+    let sha256 = ''
+    try {
+      const shaUrl = `https://getcomposer.org/download/${version}/composer.phar.sha256sum`
+      const shaResponse = await fetch(shaUrl, { signal: AbortSignal.timeout(5000) })
+      if (shaResponse.ok) {
+        const shaText = await shaResponse.text()
+        const match = shaText.trim().match(/^([a-f0-9]{64})\s+/i)
+        if (match) sha256 = match[1].toLowerCase()
+      }
+    } catch { /* ignore */ }
+
     return {
       type: 'composer',
       channel,
       version,
       url,
+      sha256: sha256 || undefined,
       label: `Composer ${version}`,
       fromCache: false,
       needsManualVerification: false,

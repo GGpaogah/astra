@@ -13,7 +13,7 @@ import { registerCatalogIpc } from "./ipc/catalog.ipc.ts";
 import { registerDownloadIpc } from "./ipc/download.ipc.ts";
 import { TmpCleaner } from "./core/TmpCleaner.ts";
 import { Settings } from "./core/Settings.ts";
-import { downloadManager, cleanupOrphanTmpFolders } from "./core/download/DownloadManager.ts";
+import { downloadManager, startupCleanup } from "./core/download/DownloadManager.ts";
 import { purgeStaleVerificationCache } from "./core/download/ResolverCache.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -66,8 +66,8 @@ registerTmpIpc();
 registerCatalogIpc();
 registerDownloadIpc();
 
-// Bersihkan folder __tmp_* sisa download yang gagal/dibatalkan
-cleanupOrphanTmpFolders();
+// Startup cleanup: bersihkan folder __tmp_* dan __del_* sisa download yang gagal/dibatalkan
+startupCleanup();
 
 // Purge cache entri yang masih needsManualVerification (fix resolver langsung terasa)
 try {

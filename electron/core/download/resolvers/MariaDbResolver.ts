@@ -74,12 +74,21 @@ export function parseMariaDbMajorReleases(
     throw new Error('format API berubah: major_releases bukan array')
   }
 
+  const now = Date.now()
+
   const candidates = api.major_releases.filter(r => {
     if (!r.release_id || !r.release_status) return false
     const status = r.release_status.toLowerCase()
-    // Channel mapping: 'stable'/'lts' → LTS or Stable; 'latest' → any Stable
-    if (channel === 'stable' || channel === 'lts') {
-      return status.includes('stable') && r.release_support_type === 'Long Term Support'
+    const support = (r.release_support_type ?? '').toLowerCase()
+    const eol = r.release_eol_date ? new Date(r.release_eol_date).getTime() : 0
+    const isLts = support.includes('long term') || eol > now + 365 * 24 * 60 * 60 * 1000 // > 1 year
+
+    if (channel === 'lts') {
+      return status.includes('stable') && isLts
+    }
+    if (channel === 'stable') {
+      // Stable channel: prefer LTS, fall back to any Stable
+      return status.includes('stable')
     }
     if (channel === 'latest') {
       return status.includes('stable')
@@ -89,8 +98,18 @@ export function parseMariaDbMajorReleases(
 
   if (candidates.length === 0) return null
 
-  // Sort by version descending (newest first)
-  candidates.sort((a, b) => compareVersionStrings(b.release_id, a.release_id))
+  // Sort: LTS first (for 'stable' channel), then by version descending
+  candidates.sort((a, b) => {
+    const aSupport = (a.release_support_type ?? '').toLowerCase()
+    const bSupport = (b.release_support_type ?? '').toLowerCase()
+    const aLts = aSupport.includes('long term') || (a.release_eol_date ? new Date(a.release_eol_date).getTime() > now + 365 * 24 * 60 * 60 * 1000 : false)
+    const bLts = bSupport.includes('long term') || (b.release_eol_date ? new Date(b.release_eol_date).getTime() > now + 365 * 24 * 60 * 60 * 1000 : false)
+
+    if (channel === 'stable' || channel === 'lts') {
+      if (aLts !== bLts) return bLts ? 1 : -1 // LTS first
+    }
+    return compareVersionStrings(b.release_id, a.release_id)
+  })
 
   return {
     version: candidates[0].release_id,
@@ -110,7 +129,15 @@ export function parseMariaDbFiles(
     throw new Error(`format API berubah: root bukan object untuk MariaDB ${version}`)
   }
   const api = json as MariaDbFilesResponse
-  const releaseData = api.releases?.[version]
+  // API key may be major "12.3" or full "12.3.3" — find key that starts with version
+  let releaseData: { files: MariaDbFile[] } | undefined
+  if (api.releases?.[version]?.files) {
+    releaseData = api.releases[version]
+  } else {
+    const keys = Object.keys(api.releases ?? {})
+    const matchKey = keys.find(k => k.startsWith(version + '.')) ?? keys.find(k => k === version)
+    if (matchKey) releaseData = api.releases[matchKey]
+  }
   if (!releaseData || !Array.isArray(releaseData.files)) {
     throw new Error(`format API berubah: files array tidak ditemukan untuk ${version}`)
   }
@@ -149,6 +176,7 @@ export async function resolveMariaDbLts(channel: VersionChannel = 'stable'): Pro
     if (!filesResponse.ok) throw new Error(`HTTP ${filesResponse.status} saat mengambil file list`)
     const filesData = await filesResponse.json()
 
+    // API may return version key as "12.3" (major) or "12.3.3" (full) — find matching key
     const parsed = parseMariaDbFiles(filesData, major.version)
     if (!parsed) throw new Error('File ZIP MariaDB Windows x64 tidak ditemukan via API')
 
